@@ -1,12 +1,13 @@
+import os
 import re
 
 class RevitJournal:
 
 	__slots__ = ['name', 'path', 'build']
 
-	def __init__(self, name, path):
+	def __init__(self, path):
 
-		self.name = name
+		self.name = os.path.basename(path)
 		self.path = path
 		self.build = None
 
