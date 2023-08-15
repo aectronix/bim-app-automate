@@ -13,7 +13,9 @@ arg = cmd.parse_args()
 cde = source.CDE(arg.dest)
 
 for journal in cde.journals:
-	print(journal.name + ' --> build: ' + journal.build)
+	# print(journal.data['name'])
+	# print(journal.data['ops']['open'])
+	print(json.dumps(journal.data, indent = 4))
 
 # print(json.dumps(journals, indent = 4))
 
