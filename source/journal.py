@@ -9,9 +9,10 @@ class RevitJournal:
 
 	def __init__(self, path):
 
+		self.path = path
 		self.data = {
 			'name':  os.path.basename(path),
-			'path': path,
+			# 'path': path,
 			'build': None,
 			'user': None,
 			'ops': {
@@ -23,10 +24,11 @@ class RevitJournal:
 
 	def getJournalData(self):
 
-		with open(self.data['path'], 'r') as file:
-			lines = file.readlines()
+		with open(self.path, 'r') as file:
 
-			li = 0
+			lines = file.readlines()
+			li = 1
+
 			for l in lines:
 
 				# builds
@@ -34,40 +36,55 @@ class RevitJournal:
 				if build:
 					self.data['build'] = build.group(1)
 
-				# user
+				# users
 				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
 				if user:
 					self.data['user'] = user.group(1)
 
 				# operations
-				dt = None
-				mode = 'local'
+				if len(self.data['ops']['open']) > 0:
+					c = re.search(r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey").*', l)
+					if c:
+						if not 'file' in self.data['ops']['open'][-1]:
+							del self.data['ops']['open'][-1]
+						if 'ID_REVIT_FILE_OPEN' in c.group() or 'ID_APPMENU_PROJECT_OPEN' in c.group():
+							self.data['ops']['open'].append({'idx': li})
 
-				# cloud
-				open_cloud = re.search(r'Open Cloud Model Method: open.*Model Guid: ([a-fA-F0-9-]+)', l)
-				if open_cloud:
-					model_guid = re.search(r'"modelGuid"":""([a-fA-F0-9-]+)"', lines[li-1])
-					if model_guid:
-						model_name = re.search(r'"displayName"":""([^"]+)"', lines[li-1])
-						if model_name:
-							name = model_name.group(1)
-							dt = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-2])
-							if dt and name:
-								# print(dt.group())
-								self.data['ops']['open'].append({'date': dt.group(), 'file': name, 'mode': 'cloud'})
+					# cancellation
+					cancel = re.search(r'\s*,\s*"IDCANCEL"\s*', l)
+					if cancel:
+						if len(self.data['ops']['open']) > 0 and not 'file' in self.data['ops']['open'][-1]:
+							del self.data['ops']['open'][-1]
 
-				# local & central
-				open_ = re.search(r'Jrn.Command \"Ribbon\".*Open an existing project.*ID_REVIT_FILE_OPEN', l)
-				if open_ and len(lines) > li+20:
-					for i in range(li+1, li+20):
-						check = re.search(r'"OpenAsLocalCheckBox"', lines[i])
-						if check: mode = 'central'
-						file_name = re.search(r'"File Name"\s*,\s*"IDOK"\s*,\s*"[^"]*\\([^\\"]+)"', lines[i])
-						if file_name:
-							# print(file_name.group(1))
-							name = file_name.group(1)
-							dt = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-							if dt and name:
-								self.data['ops']['open'].append({'date': dt.group(), 'file': name, 'mode': mode})
+				else:
+					if re.search(r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*', l):
+						self.data['ops']['open'].append({'idx': li})
+
+				# todo: ID_FILE_OPEN_CLOUD
+
+				# open
+				if len(self.data['ops']['open']) > 0:
+					cmd = self.data['ops']['open'][-1]
+					f = re.search(r'\s*"IDOK"\s*,\s*"([^"]*)"', l)
+
+					if f and f.group(1):
+						dt = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
+						fn = re.search(r'[\\/](?=[^\\/]*$)(.+)$', f.group(1))
+						if fn and fn.group(1) and dt:
+							cmd['date'] = dt.group(0)
+							cmd['file'] = fn.group(1)
+							if 'RSN' in f.group(1):
+								cmd['host'] = 'server'
+
+					if 'file' in cmd:
+						if not 'host' in cmd:
+							cm = re.search(r'\s*SLOG\s*central\s*=\s*\".*[\\/]([^\"/]+)\"', l)
+							if cm and cm.group(1) == cmd['file']:
+								cmd['host'] = 'network'
 
 				li += 1
+
+
+		# just for case
+		if len(self.data['ops']['open']) > 0 and not 'file' in self.data['ops']['open'][-1]:
+			del self.data['ops']['open'][-1]
