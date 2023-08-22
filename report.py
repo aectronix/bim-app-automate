@@ -15,7 +15,8 @@ cde = source.CDE(arg.dest)
 for journal in cde.journals:
 	# print('.')
 	# print(journal.data['ops']['open'])
-	print(json.dumps(journal.data, indent = 4))
+	if journal.data['ops']:
+		print(json.dumps(journal.data, indent = 4))
 
 # print(json.dumps(journals, indent = 4))
 

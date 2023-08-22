@@ -15,9 +15,7 @@ class RevitJournal:
 			# 'path': path,
 			# 'build': None,
 			# 'user': None,
-			'ops': {
-				'open': []
-			}
+			'ops': []
 		}
 
 		self.getJournalData()
@@ -44,28 +42,19 @@ class RevitJournal:
 				# todo: organize commands
 
 				# operations
-				if len(self.data['ops']['open']) > 0:
-					c1 = re.search(r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey").*', l) # regular & server
-					c2 = re.search(r'Open Cloud Model Method.*', l) # cloud case
-					if c1 or c2:
-						if not 'file' in self.data['ops']['open'][-1]:
-							del self.data['ops']['open'][-1]
-						if (c1 and 'ID_REVIT_FILE_OPEN' in c1.group()) or (c1 and 'ID_APPMENU_PROJECT_OPEN' in c1.group()) or (c2 and 'Model Guid' in c2.group()):
-							self.data['ops']['open'].append({'idx': li})
+				if re.search(r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*', l) or re.search(r'Open Cloud Model Method.*Model Guid:.*', l):
+					if len(self.data['ops']) > 0 and not 'file' in self.data['ops'][-1]:
+						del self.data['ops'][-1]
+					self.data['ops'].append({'idx': li, 'cmd': 'open'})
 
-					# cancellation
-					cancel = re.search(r'\s*,\s*"IDCANCEL"\s*', l)
-					if cancel:
-						if len(self.data['ops']['open']) > 0 and not 'file' in self.data['ops']['open'][-1]:
-							del self.data['ops']['open'][-1]
-
-				else:
-					if re.search(r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*', l) or re.search(r'Open Cloud Model Method.*', l):
-						self.data['ops']['open'].append({'idx': li})
+				# cancellation
+				if len(self.data['ops']) > 0 and re.search(r'\s*,\s*"IDCANCEL"\s*', l):
+					if not 'file' in self.data['ops'][-1]:
+						del self.data['ops'][-1]
 
 				# open
-				if len(self.data['ops']['open']) > 0:
-					cmd = self.data['ops']['open'][-1]
+				if len(self.data['ops']) > 0:
+					cmd = self.data['ops'][-1] # last cmd entry
 
 					# cloud
 					file_cloud = re.search(r'Open Cloud Model Method.*Model Guid:\s*([^\s,]+)', l)
@@ -97,5 +86,5 @@ class RevitJournal:
 
 
 		# just for case
-		if len(self.data['ops']['open']) > 0 and not 'file' in self.data['ops']['open'][-1]:
-			del self.data['ops']['open'][-1]
+		if len(self.data['ops']) > 0 and not 'file' in self.data['ops'][-1]:
+			del self.data['ops'][-1]
