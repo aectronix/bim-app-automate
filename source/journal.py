@@ -22,6 +22,13 @@ class RevitJournal:
 
 	def getJournalData(self):
 
+		commands = [
+			{ 'open': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },		# regular
+			{ 'open': r'Open Cloud Model Method.*Model Guid:.*' },																		# cloud only
+			#{ 'save': r'save' },																										#
+			#{ 'save': r'sync' },																										#
+		]
+
 		with open(self.path, 'r') as file:
 
 			lines = file.readlines()
@@ -39,13 +46,13 @@ class RevitJournal:
 				if user:
 					self.data['user'] = user.group(1)
 
-				# todo: organize commands
-
 				# operations
-				if re.search(r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*', l) or re.search(r'Open Cloud Model Method.*Model Guid:.*', l):
-					if len(self.data['ops']) > 0 and not 'file' in self.data['ops'][-1]:
-						del self.data['ops'][-1]
-					self.data['ops'].append({'idx': li, 'cmd': 'open'})
+				for c in commands:
+					if re.search(c[next(iter(c))], l):
+						if len(self.data['ops']) > 0 and not 'file' in self.data['ops'][-1]:
+							del self.data['ops'][-1]
+						self.data['ops'].append({'idx': li, 'cmd': next(iter(c))})
+						break
 
 				# cancellation
 				if len(self.data['ops']) > 0 and re.search(r'\s*,\s*"IDCANCEL"\s*', l):
