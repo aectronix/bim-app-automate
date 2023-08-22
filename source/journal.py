@@ -73,29 +73,26 @@ class RevitJournal:
 						guid = re.search(r'"modelGuid"":""(.*?)""', lines[li-2])
 						if guid and guid.group(1) == file_cloud.group(1):
 							name = re.search(r'""displayName"":""(.*?)"",', lines[li-2])
-							if name and name.group(1):
-								print(name.group(1))
+							date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-1])
+							if name and name.group(1) and date:
+								cmd['date'] = date.group(0)
+								cmd['file'] = name.group(1)
 							
-					# todo:
-					# date, host (check later Nonworkshared Cloud Local)	
-
 					# regular
 					f = re.search(r'\s*"IDOK"\s*,\s*"([^"]*)"', l)
 					if f and f.group(1):
-						dt = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
+						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
 						fn = re.search(r'[\\/](?=[^\\/]*$)(.+)$', f.group(1))
-						if fn and fn.group(1) and dt:
-							cmd['date'] = dt.group(0)
+						if fn and fn.group(1) and date:
+							cmd['date'] = date.group(0)
 							cmd['file'] = fn.group(1)
-							if 'RSN' in f.group(1):
-								cmd['host'] = 'server'
 
+					# worksharing state
 					if 'file' in cmd:
-						if not 'host' in cmd:
-							cm = re.search(r'\s*SLOG\s*central\s*=\s*\".*[\\/]([^\"/]+)\"', l)
-							if cm and cm.group(1) == cmd['file']:
-								cmd['host'] = 'network'
-
+						sharing = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:', l)
+						if sharing and sharing.group(1):
+							cmd['share'] = sharing.group(1)
+	
 				li += 1
 
 
