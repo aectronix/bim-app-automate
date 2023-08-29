@@ -25,7 +25,7 @@ class RevitJournal:
 		commands = [
 			{ 'open': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },
 			{ 'open': r'^\s*Jrn\.RibbonEvent\s+".*ModelBrowserOpenDocumentEvent:open:.*modelGuid"".*' },
-			{ 'save': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS).*' },
+			{ 'save': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE).*' },
 			{ 'sync': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
 			#{ 'save': r'sync' },
 		]
@@ -37,15 +37,15 @@ class RevitJournal:
 
 			for l in lines:
 
-				# builds
-				build = re.search(r"' Build:\s+(\S+)", l)
-				if build:
-					self.data['build'] = build.group(1)
+				# # builds
+				# build = re.search(r"' Build:\s+(\S+)", l)
+				# if build:
+				# 	self.data['build'] = build.group(1)
 
-				# users
-				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
-				if user:
-					self.data['user'] = user.group(1)
+				# # users
+				# user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
+				# if user:
+				# 	self.data['user'] = user.group(1)
 
 				# operations
 				for c in commands:
@@ -102,6 +102,12 @@ class RevitJournal:
 								if sync_file and sync_date:
 									cmd['date'] = sync_date.group(0)
 									cmd['file'] = sync_file.group(1)
+						else:
+							if re.search(r'\s*SLOG.*>SaveAsCentral.*', l):
+								if 'RSN' in q2.group():
+									cmd['share'] = 'RevitServer Central'
+								else:
+									cmd['share'] = 'File-Based Central'
 
 					if cmd['cmd'] == 'sync':
 						if not 'file' in cmd:
