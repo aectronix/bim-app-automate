@@ -12,11 +12,16 @@ arg = cmd.parse_args()
 
 cde = source.CDE(arg.dest)
 
+comNum = 0
 for journal in cde.journals:
 	# print('.')
 	# print(journal.data['ops']['open'])
 	if journal.data['ops']:
+		comNum = comNum + len(journal.data['ops'])
 		print(json.dumps(journal.data, indent = 4))
+
+
+print(comNum)
 
 # print(json.dumps(journals, indent = 4))
 

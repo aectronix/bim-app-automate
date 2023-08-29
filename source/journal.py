@@ -25,7 +25,8 @@ class RevitJournal:
 		commands = [
 			{ 'open': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },
 			{ 'open': r'^\s*Jrn\.RibbonEvent\s+".*ModelBrowserOpenDocumentEvent:open:.*modelGuid"".*' },
-			{ 'save': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey").*Save the active project.*' },
+			{ 'save': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS).*' },
+			{ 'sync': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
 			#{ 'save': r'sync' },
 		]
 
@@ -62,7 +63,7 @@ class RevitJournal:
 					if not 'file' in self.data['ops'][-1]:
 						del self.data['ops'][-1]
 
-				# open
+				# commands
 				if len(self.data['ops']) > 0:
 					cmd = self.data['ops'][-1] # last cmd entry
 
@@ -84,13 +85,63 @@ class RevitJournal:
 								cmd['date'] = date.group(0)
 								cmd['file'] = fn.group(1)
 
+					if cmd['cmd'] == 'save':
+						if not 'file' in cmd:
+							# Retrieving from such lines: Server-based Central Model [identity = 61ff9ecf-148d-462a-81d9-94e7e895cd26, region = "US", path ...
+							q1 = re.search(r'Server-based Central Model \[identity.*?path = "(.*?)"]: init', l)
+							if q1:
+								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q1.group(1))
+								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
+								if sync_file and sync_date:
+									cmd['date'] = sync_date.group(0)
+									cmd['file'] = sync_file.group(1)
+							q2 = re.search(r'\s*"IDOK"\s*,\s*"([^"]*)"', l)
+							if q2:
+								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q2.group(1))
+								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
+								if sync_file and sync_date:
+									cmd['date'] = sync_date.group(0)
+									cmd['file'] = sync_file.group(1)
+
+					if cmd['cmd'] == 'sync':
+						if not 'file' in cmd:
+							# Retrieving from such lines: Server-based Central Model [identity = 61ff9ecf-148d-462a-81d9-94e7e895cd26, region = "US", path ...
+							q1 = re.search(r'Server-based Central Model \[identity.*?path = "(.*?)"]: init', l)
+							if q1:
+								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q1.group(1))
+								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
+								if sync_file and sync_date:
+									cmd['date'] = sync_date.group(0)
+									cmd['file'] = sync_file.group(1)
+							# Retrieving from such lines: [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: ...
+							q2 = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:', l)
+							if q2:
+								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q2.group(1))
+								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
+								if sync_file and sync_date:
+									cmd['date'] = sync_date.group(0)
+									cmd['file'] = sync_file.group(1)
+							#
+							# q3 = re.search(, l)
+
+
 					# worksharing state
-					if 'file' in cmd:
+					if 'file' in cmd and not 'share' in cmd:
+						if 'ID_REVIT_FILE_SAVE_AS_CLOUD_MODEL' in lines[cmd['idx']-1]:
+							cmd['share'] = 'Nonworkshared Cloud Local'
+
 						share = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:', l)
 						if share and share.group(1):
 							path = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:', l)
 							if path and path.group(1):
 								cmd['share'] = share.group(1)
+
+						# # save
+						# if not 'share' in cmd:
+						# 	ws = re.search(r'\[Jrn\.ModelOperation\].*?Rvt\.Attr\.Scenario: ModelSave.*?Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.ModelState:', l)
+						# 	if ws:
+						# 		cmd['share'] = ws.group(1)
+
 
 				li += 1
 
