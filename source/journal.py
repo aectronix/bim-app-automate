@@ -30,6 +30,14 @@ class RevitJournal:
 			{ 'exit': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
 		]
 
+		schemes = {
+			'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
+			'init': r'Server-based Central Model \[identity.*?path = "(.*?)"]: init',
+			'idok': r'\s*"IDOK"\s*,\s*"([^"]*)"',
+			'cloud': r'""displayName"":""(.*?)"",',
+			'info': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
+		}
+
 		with open(self.path, 'r') as file:
 
 			lines = file.readlines()
@@ -37,36 +45,35 @@ class RevitJournal:
 
 			for l in lines:
 
-				# # builds
-				# build = re.search(r"' Build:\s+(\S+)", l)
-				# if build:
-				# 	self.data['build'] = build.group(1)
+				# builds
+				build = re.search(r"' Build:\s+(\S+)", l)
+				if build:
+					self.data['build'] = build.group(1)
 
-				# # users
-				# user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
-				# if user:
-				# 	self.data['user'] = user.group(1)
+				# users
+				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
+				if user:
+					self.data['user'] = user.group(1)
 
 				# operations
 				for c in commands:
 					if re.search(c[next(iter(c))], l):
-						# q = re.search(c[next(iter(c))], l)
-						# print(q.group())
-						if len(self.data['ops']) > 0 and not 'file' in self.data['ops'][-1]:
+						if self.data['ops'] and not 'file' in self.data['ops'][-1]:
 							del self.data['ops'][-1]
-						self.data['ops'].append({'idx': li, 'cmd': next(iter(c))})
-						# print(self.data['ops'][-1])
+						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-2])
+						self.data['ops'].append({'idx': li, 'cmd': next(iter(c)), 'date': date.group(0)})
 						break
 
-				# cancellation
-				if len(self.data['ops']) > 0 and re.search(r'\s*,\s*"IDCANCEL"\s*', l):
+				# cancellation by ui
+				if self.data['ops'] and re.search(r'\s*,\s*"IDCANCEL"\s*', l):
 					if not 'file' in self.data['ops'][-1]:
 						del self.data['ops'][-1]
 
 				# command cases
-				if len(self.data['ops']) > 0:
+				if self.data['ops']:
 					cmd = self.data['ops'][-1] # last cmd entry
 
+					# transform exit commands into the final ones
 					if cmd['cmd'] == 'exit':
 						if re.search(r'\s*"TaskDialogResult".*',l):
 							rows = (lines[li], lines[li+1])
@@ -78,74 +85,34 @@ class RevitJournal:
 								cmd['cmd'] = 'sync'
 
 					if cmd['cmd'] == 'open':
-						# cloud
-						cloud_file = re.search(r'""displayName"":""(.*?)"",', l)
-						if cloud_file:
-							date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-							if date:
-								cmd['date'] = date.group(0)
-								cmd['file'] = cloud_file.group(1)
-								
-						# other
-						f = re.search(r'\s*"IDOK"\s*,\s*"([^"]*)"', l)
-						if f and f.group(1):
-							date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-							fn = re.search(r'[\\/](?=[^\\/]*$)(.+)$', f.group(1))
-							if fn and fn.group(1) and date:
-								cmd['date'] = date.group(0)
-								cmd['file'] = fn.group(1)
+						if not 'file' in cmd:
+							for s in [schemes['cloud'], schemes['idok']]:
+								save_file = self._get_file_data(s, l)
+								if save_file: cmd['file'] = save_file
 
 					if cmd['cmd'] == 'save':
 						if not 'file' in cmd:
-							q4 = re.search(r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]', l)
-							if q4:
-								save_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q4.group(1))
-								save_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-								if save_file and save_date:
-									cmd['date'] = save_date.group(0)
-									cmd['file'] = save_file.group(1)
-							q1 = re.search(r'Server-based Central Model \[identity.*?path = "(.*?)"]: init', l)
-							if q1:
-								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q1.group(1))
-								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-								if sync_file and sync_date:
-									cmd['date'] = sync_date.group(0)
-									cmd['file'] = sync_file.group(1)
-							q2 = re.search(r'\s*"IDOK"\s*,\s*"([^"]*)"', l)
-							if q2:
-								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q2.group(1))
-								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-								if sync_file and sync_date:
-									cmd['date'] = sync_date.group(0)
-									cmd['file'] = sync_file.group(1)
-						else:
-							q3 = re.search(r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',l)
-							if q3:
-								cmd['status'] = q3.group(1)
-							if re.search(r'\s*SLOG.*>SaveAsCentral.*', l):
-								if 'RSN' in q2.group():
-									cmd['status'] = 'RevitServer Central'
-								else:
-									cmd['status'] = 'File-Based Central'
+
+							for s in [schemes['onsave'], schemes['init'], schemes['idok']]:
+								save_file = self._get_file_data(s, l)
+								if save_file: cmd['file'] = save_file
+						# TODO:
+						# else:
+						# 	q3 = re.search(r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',l)
+						# 	if q3:
+						# 		cmd['status'] = q3.group(1)
+							# if re.search(r'\s*SLOG.*>SaveAsCentral.*', l):
+							# 	if 'RSN' in q2.group():
+							# 		cmd['status'] = 'RevitServer Central'
+							# 	else:
+							# 		cmd['status'] = 'File-Based Central'
 
 					if cmd['cmd'] == 'sync':
 						if not 'file' in cmd:
-							# Retrieving from such lines: Server-based Central Model [identity = 61ff9ecf-148d-462a-81d9-94e7e895cd26, region = "US", path ...
-							q1 = re.search(r'Server-based Central Model \[identity.*?path = "(.*?)"]: init', l)
-							if q1:
-								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q1.group(1))
-								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-								if sync_file and sync_date:
-									cmd['date'] = sync_date.group(0)
-									cmd['file'] = sync_file.group(1)
-							# Retrieving from such lines: [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: ...
-							q2 = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:', l)
-							if q2:
-								sync_file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q2.group(1))
-								sync_date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[cmd['idx']-2])
-								if sync_file and sync_date:
-									cmd['date'] = sync_date.group(0)
-									cmd['file'] = sync_file.group(1)
+
+							for s in [schemes['init'], schemes['info']]:
+								save_file = self._get_file_data(s, l)
+								if save_file: cmd['file'] = save_file
 
 					# worksharing state
 					if 'file' in cmd and not 'status' in cmd:
@@ -162,5 +129,16 @@ class RevitJournal:
 
 
 		# just for case
-		if len(self.data['ops']) > 0 and not 'file' in self.data['ops'][-1]:
+		if self.data['ops'] and not 'file' in self.data['ops'][-1]:
 			del self.data['ops'][-1]
+
+	@staticmethod
+	def _get_file_data(query, line):
+		q = re.search(query, line)
+		if q:
+			if '/' in q.group(1) or '\\' in q.group(1):
+				file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q.group(1))
+				return file.group(1)
+			else:
+				return q.group(1)
+				
