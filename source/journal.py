@@ -3,11 +3,30 @@ import re
 
 from datetime import datetime
 
+commands = [
+	{ 'open': r'Jrn\.RibbonEvent.*ModelBrowserOpenDocumentEvent:open:.*modelGuid.*' },
+	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },
+	{ 'save': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE).*' },
+	{ 'sync': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
+	{ 'exit': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
+]
+
+schemes = {
+	'cloud': r'""displayName"":""(.*?)"",',
+	'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
+	'init': r'Server-based Central Model \[identity.*?path = "(.*?)"]: init',
+	'idok': r'\s*"IDOK"\s*,\s*"([^"]*)"',
+	'info': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
+	'ws': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
+	'modsave': r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',
+	'savecloud': r'\s*Jrn\.AddInEvent.*WpfWindow(SaveAsCloudModelWindow,(.*?)).WpfSaveAsCloudModelBrowser',
+}
+
 class RevitJournal:
 
 	__slots__ = ['name', 'path', 'build', 'data']
 
-	def __init__(self, path):
+	def __init__(self, path: str):
 
 		self.path = path
 		self.data = {
@@ -21,22 +40,6 @@ class RevitJournal:
 		self.getJournalData()
 
 	def getJournalData(self):
-
-		commands = [
-			{ 'open': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },
-			{ 'open': r'^\s*Jrn\.RibbonEvent\s+".*ModelBrowserOpenDocumentEvent:open:.*modelGuid"".*' },
-			{ 'save': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE).*' },
-			{ 'sync': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
-			{ 'exit': r'^\s*Jrn\.Command\s+".*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
-		]
-
-		schemes = {
-			'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
-			'init': r'Server-based Central Model \[identity.*?path = "(.*?)"]: init',
-			'idok': r'\s*"IDOK"\s*,\s*"([^"]*)"',
-			'cloud': r'""displayName"":""(.*?)"",',
-			'info': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
-		}
 
 		with open(self.path, 'r') as file:
 
@@ -55,7 +58,7 @@ class RevitJournal:
 				if user:
 					self.data['user'] = user.group(1)
 
-				# operations
+				# try to catch the commands
 				for c in commands:
 					if re.search(c[next(iter(c))], l):
 						if self.data['ops'] and not 'file' in self.data['ops'][-1]:
@@ -68,6 +71,10 @@ class RevitJournal:
 				if self.data['ops'] and re.search(r'\s*,\s*"IDCANCEL"\s*', l):
 					if not 'file' in self.data['ops'][-1]:
 						del self.data['ops'][-1]
+
+				# TODO:
+				#' 0:< Autodesk.Bcg.Http.HttpRequestStatusException: Forbidden: Unknown response GetModelResponse 
+				#'C 01-Sep-2023 18:07:12.846;   0:< HttpRequestFailedException "403" "Forbidden: Unknown response GetModelResponse" 
 
 				# command cases
 				if self.data['ops']:
@@ -86,44 +93,26 @@ class RevitJournal:
 
 					if cmd['cmd'] == 'open':
 						if not 'file' in cmd:
-							for s in [schemes['cloud'], schemes['idok']]:
-								save_file = self._get_file_data(s, l)
-								if save_file: cmd['file'] = save_file
 
-					if cmd['cmd'] == 'save':
+							open_file = self._get_cmd_file([schemes['cloud'], schemes['idok']], l)
+							if open_file: cmd['file'] = open_file
+
+					elif cmd['cmd'] == 'save':
 						if not 'file' in cmd:
 
-							for s in [schemes['onsave'], schemes['init'], schemes['idok']]:
-								save_file = self._get_file_data(s, l)
-								if save_file: cmd['file'] = save_file
-						# TODO:
-						# else:
-						# 	q3 = re.search(r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',l)
-						# 	if q3:
-						# 		cmd['status'] = q3.group(1)
-							# if re.search(r'\s*SLOG.*>SaveAsCentral.*', l):
-							# 	if 'RSN' in q2.group():
-							# 		cmd['status'] = 'RevitServer Central'
-							# 	else:
-							# 		cmd['status'] = 'File-Based Central'
+							save_file = self._get_cmd_file([schemes['onsave'], schemes['init'], schemes['idok']], l)
+							if save_file: cmd['file'] = save_file
 
-					if cmd['cmd'] == 'sync':
+					elif cmd['cmd'] == 'sync':
 						if not 'file' in cmd:
 
-							for s in [schemes['init'], schemes['info']]:
-								save_file = self._get_file_data(s, l)
-								if save_file: cmd['file'] = save_file
+							sync_file = self._get_cmd_file([schemes['init'], schemes['info']], l)
+							if sync_file: cmd['file'] = sync_file
 
 					# worksharing state
 					if 'file' in cmd and not 'status' in cmd:
-						if 'ID_REVIT_FILE_SAVE_AS_CLOUD_MODEL' in lines[cmd['idx']-1]:
-							cmd['status'] = 'Nonworkshared Cloud Local'
-
-						status = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:', l)
-						if status and status.group(1):
-							path = re.search(r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:', l)
-							if path and path.group(1):
-								cmd['status'] = status.group(1)
+						status = self._get_cmd_status([schemes['ws'], schemes['modsave'], schemes['savecloud']], l)
+						if status: cmd['status'] = status
 
 				li += 1
 
@@ -132,13 +121,24 @@ class RevitJournal:
 		if self.data['ops'] and not 'file' in self.data['ops'][-1]:
 			del self.data['ops'][-1]
 
+
+	# extrat data from specific scheme parts
 	@staticmethod
-	def _get_file_data(query, line):
-		q = re.search(query, line)
-		if q:
-			if '/' in q.group(1) or '\\' in q.group(1):
-				file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q.group(1))
-				return file.group(1)
-			else:
+	def _get_cmd_file(schemes, line):
+		for s in schemes:
+			q = re.search(s, line)
+			if q and q.group(1):
+				if '/' in q.group(1) or '\\' in q.group(1):
+					file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q.group(1))
+					return file.group(1)
+				else:
+					return q.group(1)
+				break
+
+	@staticmethod
+	def _get_cmd_status(schemes, line):
+		for s in schemes:
+			q = re.search(s, line)
+			if q and q.group(1):
 				return q.group(1)
-				
+				break
