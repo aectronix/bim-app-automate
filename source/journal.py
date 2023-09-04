@@ -20,6 +20,9 @@ schemes = {
 	'ws': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
 	'modsave': r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',
 	'savecloud': r'\s*Jrn\.AddInEvent.*WpfWindow(SaveAsCloudModelWindow,(.*?)).WpfSaveAsCloudModelBrowser',
+	'cancel': r'IDCANCEL',
+	'forbidden': r'HttpRequestStatusException.*Unknown response.*GetModelResponse.*',
+	'error403': r'HttpRequestFailedException.*403.*Forbidden.*',
 }
 
 class RevitJournal:
@@ -48,15 +51,15 @@ class RevitJournal:
 
 			for l in lines:
 
-				# builds
-				build = re.search(r"' Build:\s+(\S+)", l)
-				if build:
-					self.data['build'] = build.group(1)
+				# # builds
+				# build = re.search(r"' Build:\s+(\S+)", l)
+				# if build:
+				# 	self.data['build'] = build.group(1)
 
-				# users
-				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
-				if user:
-					self.data['user'] = user.group(1)
+				# # users
+				# user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
+				# if user:
+				# 	self.data['user'] = user.group(1)
 
 				# try to catch the commands
 				for c in commands:
@@ -67,18 +70,15 @@ class RevitJournal:
 						self.data['ops'].append({'idx': li, 'cmd': next(iter(c)), 'date': date.group(0)})
 						break
 
-				# cancellation by ui
-				if self.data['ops'] and re.search(r'\s*,\s*"IDCANCEL"\s*', l):
-					if not 'file' in self.data['ops'][-1]:
+				# get the ast entry if exists
+				if self.data['ops']:
+					cmd = self.data['ops'][-1]
+
+					# cancellation & errors
+					if (self._get_cmd_stop([schemes['cancel']], l) and not 'file' in cmd) or self._get_cmd_stop([schemes['forbidden']], l):
 						del self.data['ops'][-1]
 
-				# TODO:
-				#' 0:< Autodesk.Bcg.Http.HttpRequestStatusException: Forbidden: Unknown response GetModelResponse 
-				#'C 01-Sep-2023 18:07:12.846;   0:< HttpRequestFailedException "403" "Forbidden: Unknown response GetModelResponse" 
-
-				# command cases
-				if self.data['ops']:
-					cmd = self.data['ops'][-1] # last cmd entry
+					# command cases
 
 					# transform exit commands into the final ones
 					if cmd['cmd'] == 'exit':
@@ -123,6 +123,14 @@ class RevitJournal:
 
 
 	# extrat data from specific scheme parts
+	@staticmethod
+	def _get_cmd_stop(schemes, line):
+		for s in schemes:
+			q = re.search(s, line)
+			if q:
+				return True
+				break
+
 	@staticmethod
 	def _get_cmd_file(schemes, line):
 		for s in schemes:
