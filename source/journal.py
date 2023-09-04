@@ -6,7 +6,7 @@ from datetime import datetime
 # The bunch of schemes to extract the primary command
 commands = [
 	{ 'open': r'Jrn\.RibbonEvent.*ModelBrowserOpenDocumentEvent:open:.*modelGuid.*' },
-	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },
+	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN|.*ID_IMPORT_IFC).*' },
 	{ 'save': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE).*' },
 	{ 'sync': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
 	{ 'exit': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
@@ -18,7 +18,7 @@ schemes = {
 	# >>> Jrn.RibbonEvent "ModelBrowserOpenDocumentEvent:open:{""projectGuid"":""???"",""modelGuid"":""???"",""id"":""cld://US/{???}__SHA/{???}???"",""displayName"":""???"",""region"":""US"",""modelVersion"":""0""}" 
 	'model_browser': r'""displayName"":""(.*?)"",',
 	# Retrieve the file for local savings:
-	# >>> 2:< [ISL] On save, Adler Checksum: 0x3dab8d16 [C:\Users\i.yurasov\Desktop\???] 
+	# >>> 2:< [ISL] On save, Adler Checksum: 0x3dab8d16 [C:\Users\username\Desktop\???] 
 	'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
 	# Retrieve the file for save and synchronisation commands:
 	# >>> Server-based Central Model [identity = ???, region = "US", path = "Autodesk Docs://__SHA/???"]: init
