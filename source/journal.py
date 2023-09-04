@@ -14,31 +14,31 @@ commands = [
 
 # The bunch of schemes to extract the command data
 schemes = {
-	# Opening case for cloud models:
+	# Retrieve the file for cloud models openings:
 	# >>> Jrn.RibbonEvent "ModelBrowserOpenDocumentEvent:open:{""projectGuid"":""???"",""modelGuid"":""???"",""id"":""cld://US/{???}__SHA/{???}???"",""displayName"":""???"",""region"":""US"",""modelVersion"":""0""}" 
 	'model_browser': r'""displayName"":""(.*?)"",',
-	# On save case for local files:
+	# Retrieve the file for local savings:
 	# >>> 2:< [ISL] On save, Adler Checksum: 0x3dab8d16 [C:\Users\i.yurasov\Desktop\???] 
 	'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
-	# Trying to retrieve the file for save and synchronisation commands:
+	# Retrieve the file for save and synchronisation commands:
 	# >>> Server-based Central Model [identity = ???, region = "US", path = "Autodesk Docs://__SHA/???"]: init
 	'init': r'Server-based Central Model \[identity.*?path = "(.*?)"]: init',
 	# Pretty common case for a lot of commands, also works like a confirmation:
 	# >>> H 30-Aug-2023 00:37:11.806;   0:<  Jrn.Data  _ "File Name"  , "IDOK" , "???" 
-	'idok': r'\s*"IDOK"\s*,\s*"([^"]*)"',
+	'idok': r'"IDOK"\s*,\s*"([^"]*)"',
 	# Used to retrieve the file from this for a bunch of situations:
 	# >>> [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: Not enabled Rvt.Attr.Username:  Rvt.Attr.CentralModelPath:  Rvt.Attr.RevitBuildVersion: Autodesk Revit 2022 ??? Rvt.Attr.LastSavePath: ??? Rvt.Attr.LTProject: notLTProject Rvt.Attr.LocaleWhenSaved: ENU Rvt.Attr.FileExt: rvt 
-	'file_info': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
+	'file_info': r'\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
 	
 	# Used to retrieve worksharing status for a bunch of file operations:
 	# >>> # [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: ??? Rvt.Attr.Username:  Rvt.Attr.CentralModelPath:  Rvt.Attr.RevitBuildVersion: Autodesk Revit 2022 ??? Rvt.Attr.LastSavePath: ??? Rvt.Attr.LTProject: notLTProject Rvt.Attr.LocaleWhenSaved: ENU Rvt.Attr.FileExt: rvt 
-	'worksharing': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
+	'worksharing': r'\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
 	# Used to retrieve worksharing status while saving locally:
 	# >>> [Jrn.ModelOperation] Rvt.Attr.Scenario: ModelSave COMMON.OS_VERSION: Microsoft Windows 10 Rvt.Attr.ModelVerEpisode: 6cc57073-dded-4210-8f2e-8e1cbefca187 34Rvt.Attr.ModelPath: RVT[8287748288871148745] Rvt.Attr.ModelSize: 0 Rvt.Attr.DetectDuration: 750 Rvt.Attr.Worksharing: WorkShared Rvt.Attr.ModelState: Normal 
-	'modsave': r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',
+	'modsave': r'\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',
 	# Used to retrieve worksharing status while saving to the cloud:
 	# >>> Jrn.AddInEvent "AddInJournaling"  , "WpfWindow(SaveAsCloudModelWindow,Save as Cloud Model).WpfSaveAsCloudModelBrowser(0,browser).Action(Save,b\.???,US,b\.???,__SHA,urn:adsk\.wipprod:fs\.folder:co\.???,???)" 
-	'savecloud': r'\s*Jrn\.AddInEvent.*WpfWindow(SaveAsCloudModelWindow,(.*?)).WpfSaveAsCloudModelBrowser',
+	'savecloud': r'Jrn\.AddInEvent.*WpfWindow(SaveAsCloudModelWindow,(.*?)).WpfSaveAsCloudModelBrowser',
 
 	# Command process is interrupted by user pushing the ui button:
 	# >>> 'H 29-Aug-2023 23:58:27.246;   0:< Jrn.Data  _ "File Name"  , "IDCANCEL" , "" 
@@ -60,9 +60,9 @@ class RevitJournal:
 		self.path = path
 		self.data = {
 			'name':  os.path.basename(path),
-			# 'path': path,
-			# 'build': None,
-			# 'user': None,
+			'path': path,
+			'build': None,
+			'user': None,
 			'ops': []
 		}
 
@@ -77,15 +77,15 @@ class RevitJournal:
 
 			for l in lines:
 
-				# # builds
-				# build = re.search(r"' Build:\s+(\S+)", l)
-				# if build:
-				# 	self.data['build'] = build.group(1)
+				# builds
+				build = re.search(r"' Build:\s+(\S+)", l)
+				if build:
+					self.data['build'] = build.group(1)
 
-				# # users
-				# user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
-				# if user:
-				# 	self.data['user'] = user.group(1)
+				# users
+				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
+				if user:
+					self.data['user'] = user.group(1)
 
 				# try to catch the commands
 				for c in commands:
@@ -104,8 +104,6 @@ class RevitJournal:
 					if (self._get_cmd_stop([schemes['cancel']], l) and not 'file' in cmd) or self._get_cmd_stop([schemes['request_unknown'], schemes['request_failed']], l):
 						del self.data['ops'][-1]
 
-					# command cases
-
 					# transform exit commands into the final ones
 					if cmd['cmd'] == 'exit':
 						if re.search(r'\s*"TaskDialogResult".*',l):
@@ -117,25 +115,23 @@ class RevitJournal:
 							elif any('Synchronize with central' in line for line in rows) and any('1001' in line for line in rows):
 								cmd['cmd'] = 'sync'
 
-					if cmd['cmd'] == 'open':
-						if not 'file' in cmd:
+					# we try to extract the data for started command from all suitable schemes:
+					if cmd['cmd'] == 'open' and not 'file' in cmd:
 
 							open_file = self._get_cmd_file([schemes['model_browser'], schemes['idok']], l)
 							if open_file: cmd['file'] = open_file
 
-					elif cmd['cmd'] == 'save':
-						if not 'file' in cmd:
+					elif cmd['cmd'] == 'save' and not 'file' in cmd:
 
 							save_file = self._get_cmd_file([schemes['onsave'], schemes['init'], schemes['idok']], l)
 							if save_file: cmd['file'] = save_file
 
-					elif cmd['cmd'] == 'sync':
-						if not 'file' in cmd:
+					elif cmd['cmd'] == 'sync' and not 'file' in cmd:
 
 							sync_file = self._get_cmd_file([schemes['init'], schemes['file_info']], l)
 							if sync_file: cmd['file'] = sync_file
 
-					# worksharing state
+					# cathing worksharing state
 					if 'file' in cmd and not 'status' in cmd:
 						status = self._get_cmd_status([schemes['worksharing'], schemes['modsave'], schemes['savecloud']], l)
 						if status: cmd['status'] = status
