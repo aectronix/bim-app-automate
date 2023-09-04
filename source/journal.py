@@ -3,6 +3,7 @@ import re
 
 from datetime import datetime
 
+# The bunch of schemes to extract the primary command
 commands = [
 	{ 'open': r'Jrn\.RibbonEvent.*ModelBrowserOpenDocumentEvent:open:.*modelGuid.*' },
 	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN).*' },
@@ -11,18 +12,43 @@ commands = [
 	{ 'exit': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
 ]
 
+# The bunch of schemes to extract the command data
 schemes = {
-	'cloud': r'""displayName"":""(.*?)"",',
+	# Opening case for cloud models:
+	# >>> Jrn.RibbonEvent "ModelBrowserOpenDocumentEvent:open:{""projectGuid"":""???"",""modelGuid"":""???"",""id"":""cld://US/{???}__SHA/{???}???"",""displayName"":""???"",""region"":""US"",""modelVersion"":""0""}" 
+	'model_browser': r'""displayName"":""(.*?)"",',
+	# On save case for local files:
+	# >>> 2:< [ISL] On save, Adler Checksum: 0x3dab8d16 [C:\Users\i.yurasov\Desktop\???] 
 	'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
+	# Trying to retrieve the file for save and synchronisation commands:
+	# >>> Server-based Central Model [identity = ???, region = "US", path = "Autodesk Docs://__SHA/???"]: init
 	'init': r'Server-based Central Model \[identity.*?path = "(.*?)"]: init',
+	# Pretty common case for a lot of commands, also works like a confirmation:
+	# >>> H 30-Aug-2023 00:37:11.806;   0:<  Jrn.Data  _ "File Name"  , "IDOK" , "???" 
 	'idok': r'\s*"IDOK"\s*,\s*"([^"]*)"',
-	'info': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
-	'ws': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
+	# Used to retrieve the file from this for a bunch of situations:
+	# >>> [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: Not enabled Rvt.Attr.Username:  Rvt.Attr.CentralModelPath:  Rvt.Attr.RevitBuildVersion: Autodesk Revit 2022 ??? Rvt.Attr.LastSavePath: ??? Rvt.Attr.LTProject: notLTProject Rvt.Attr.LocaleWhenSaved: ENU Rvt.Attr.FileExt: rvt 
+	'file_info': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing:.*Rvt\.Attr\.LastSavePath: (.*?) Rvt\.Attr\.LTProject:',
+	
+	# Used to retrieve worksharing status for a bunch of file operations:
+	# >>> # [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: ??? Rvt.Attr.Username:  Rvt.Attr.CentralModelPath:  Rvt.Attr.RevitBuildVersion: Autodesk Revit 2022 ??? Rvt.Attr.LastSavePath: ??? Rvt.Attr.LTProject: notLTProject Rvt.Attr.LocaleWhenSaved: ENU Rvt.Attr.FileExt: rvt 
+	'worksharing': r'\s*\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
+	# Used to retrieve worksharing status while saving locally:
+	# >>> [Jrn.ModelOperation] Rvt.Attr.Scenario: ModelSave COMMON.OS_VERSION: Microsoft Windows 10 Rvt.Attr.ModelVerEpisode: 6cc57073-dded-4210-8f2e-8e1cbefca187 34Rvt.Attr.ModelPath: RVT[8287748288871148745] Rvt.Attr.ModelSize: 0 Rvt.Attr.DetectDuration: 750 Rvt.Attr.Worksharing: WorkShared Rvt.Attr.ModelState: Normal 
 	'modsave': r'\s*\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',
+	# Used to retrieve worksharing status while saving to the cloud:
+	# >>> Jrn.AddInEvent "AddInJournaling"  , "WpfWindow(SaveAsCloudModelWindow,Save as Cloud Model).WpfSaveAsCloudModelBrowser(0,browser).Action(Save,b\.???,US,b\.???,__SHA,urn:adsk\.wipprod:fs\.folder:co\.???,???)" 
 	'savecloud': r'\s*Jrn\.AddInEvent.*WpfWindow(SaveAsCloudModelWindow,(.*?)).WpfSaveAsCloudModelBrowser',
+
+	# Command process is interrupted by user pushing the ui button:
+	# >>> 'H 29-Aug-2023 23:58:27.246;   0:< Jrn.Data  _ "File Name"  , "IDCANCEL" , "" 
 	'cancel': r'IDCANCEL',
-	'forbidden': r'HttpRequestStatusException.*Unknown response.*GetModelResponse.*',
-	'error403': r'HttpRequestFailedException.*403.*Forbidden.*',
+	# Request status is unknown (cloud cases):
+	# >>> 0:< Autodesk.Bcg.Http.HttpRequestStatusException: Forbidden: Unknown response GetModelResponse 
+	'request_unknown': r'HttpRequestStatusException.*Unknown response.*GetModelResponse.*',
+	# Requestis failed, access is forbidden (cloud case):
+	# >>> C 01-Sep-2023 18:07:12.846; 0:< HttpRequestFailedException "403" "Forbidden: Unknown response GetModelResponse" 
+	'request_failed': r'HttpRequestFailedException.*403.*Forbidden.*',
 }
 
 class RevitJournal:
@@ -75,7 +101,7 @@ class RevitJournal:
 					cmd = self.data['ops'][-1]
 
 					# cancellation & errors
-					if (self._get_cmd_stop([schemes['cancel']], l) and not 'file' in cmd) or self._get_cmd_stop([schemes['forbidden']], l):
+					if (self._get_cmd_stop([schemes['cancel']], l) and not 'file' in cmd) or self._get_cmd_stop([schemes['request_unknown'], schemes['request_failed']], l):
 						del self.data['ops'][-1]
 
 					# command cases
@@ -94,7 +120,7 @@ class RevitJournal:
 					if cmd['cmd'] == 'open':
 						if not 'file' in cmd:
 
-							open_file = self._get_cmd_file([schemes['cloud'], schemes['idok']], l)
+							open_file = self._get_cmd_file([schemes['model_browser'], schemes['idok']], l)
 							if open_file: cmd['file'] = open_file
 
 					elif cmd['cmd'] == 'save':
@@ -106,12 +132,12 @@ class RevitJournal:
 					elif cmd['cmd'] == 'sync':
 						if not 'file' in cmd:
 
-							sync_file = self._get_cmd_file([schemes['init'], schemes['info']], l)
+							sync_file = self._get_cmd_file([schemes['init'], schemes['file_info']], l)
 							if sync_file: cmd['file'] = sync_file
 
 					# worksharing state
 					if 'file' in cmd and not 'status' in cmd:
-						status = self._get_cmd_status([schemes['ws'], schemes['modsave'], schemes['savecloud']], l)
+						status = self._get_cmd_status([schemes['worksharing'], schemes['modsave'], schemes['savecloud']], l)
 						if status: cmd['status'] = status
 
 				li += 1
