@@ -6,8 +6,8 @@ from datetime import datetime
 # The bunch of schemes to extract the primary command
 commands = [
 	{ 'open': r'Jrn\.RibbonEvent.*ModelBrowserOpenDocumentEvent:open:.*modelGuid.*' },
-	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN|.*ID_IMPORT_IFC).*' },
-	{ 'save': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE).*' },
+	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN|.*ID_FAMILY_OPEN|.*ID_IMPORT_IFC).*' },
+	{ 'save': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE|.*ID_SAVE_FAMILY|.*ID_REVIT_SAVE_AS_FAMILY).*' },
 	{ 'sync': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
 	{ 'exit': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
 ]
