@@ -8,7 +8,7 @@ commands = [
 	{ 'open': r'Jrn\.RibbonEvent.*ModelBrowserOpenDocumentEvent:open:.*modelGuid.*' },
 	{ 'open': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_OPEN|.*ID_APPMENU_PROJECT_OPEN|.*ID_FAMILY_OPEN|.*ID_IMPORT_IFC).*' },
 	{ 'save': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_SAVE|.*ID_REVIT_FILE_SAVE_AS|.*ID_REVIT_SAVE_AS_TEMPLATE|.*ID_SAVE_FAMILY|.*ID_REVIT_SAVE_AS_FAMILY).*' },
-	{ 'sync': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT).*' },
+	{ 'sync': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_FILE_SAVE_TO_CENTRAL|.*ID_FILE_SAVE_TO_MASTER_SHORTCUT|.*ID_COLLABORATE).*' },
 	{ 'exit': r'Jrn\.Command.*(?=Ribbon|Internal|AccelKey")(?=.*ID_REVIT_FILE_CLOSE|.*ID_APP_EXIT).*' },
 ]
 
@@ -21,8 +21,8 @@ schemes = {
 	# >>> 2:< [ISL] On save, Adler Checksum: 0x3dab8d16 [C:\Users\username\Desktop\???] 
 	'onsave': r'\[ISL\] On save.*Adler Checksum:.*\[(.*?)\]',
 	# Retrieve the file for save and synchronisation commands:
-	# >>> Server-based Central Model [identity = ???, region = "US", path = "Autodesk Docs://__SHA/???"]: init
-	'init': r'Server-based Central Model \[identity.*?path = "(.*?)"]: init',
+	# >>> Jrn.AddInEvent "AddInJournaling"  , "WpfWindow(SaveAsCloudModelWindow,Save as Cloud Model).WpfSaveAsCloudModelBrowser(0,browser).Action(Save,b\.???,US,b\.???,__SHA,urn:adsk\.wipprod:fs\.folder:co\.hhMImAhRSj271ihCnYWLUA,???)" 
+	'ascloud':  r'Jrn.AddInEvent\s*"AddInJournaling".*SaveAsCloudModelWindow.*folder:co.*,(.*?)\)"',
 	# Pretty common case for a lot of commands, also works like a confirmation:
 	# >>> H 30-Aug-2023 00:37:11.806;   0:<  Jrn.Data  _ "File Name"  , "IDOK" , "???" 
 	'idok': r'"IDOK"\s*,\s*"([^"]*)"',
@@ -34,11 +34,14 @@ schemes = {
 	# >>> # [Jrn.BasicFileInfo] Rvt.Attr.Worksharing: ??? Rvt.Attr.Username:  Rvt.Attr.CentralModelPath:  Rvt.Attr.RevitBuildVersion: Autodesk Revit 2022 ??? Rvt.Attr.LastSavePath: ??? Rvt.Attr.LTProject: notLTProject Rvt.Attr.LocaleWhenSaved: ENU Rvt.Attr.FileExt: rvt 
 	'worksharing': r'\[Jrn\.BasicFileInfo\].*Rvt\.Attr\.Worksharing: (.*?) Rvt\.Attr\.Username:.*Rvt\.Attr\.LTProject:',
 	# Used to retrieve worksharing status while saving locally:
-	# >>> [Jrn.ModelOperation] Rvt.Attr.Scenario: ModelSave COMMON.OS_VERSION: Microsoft Windows 10 Rvt.Attr.ModelVerEpisode: 6cc57073-dded-4210-8f2e-8e1cbefca187 34Rvt.Attr.ModelPath: RVT[8287748288871148745] Rvt.Attr.ModelSize: 0 Rvt.Attr.DetectDuration: 750 Rvt.Attr.Worksharing: WorkShared Rvt.Attr.ModelState: Normal 
+	# >>> [Jrn.ModelOperation] Rvt.Attr.Scenario: ModelSave COMMON.OS_VERSION: Microsoft Windows 10 Rvt.Attr.ModelVerEpisode: ??? 34Rvt.Attr.ModelPath: RVT[???] Rvt.Attr.ModelSize: 0 Rvt.Attr.DetectDuration: 750 Rvt.Attr.Worksharing: WorkShared Rvt.Attr.ModelState: Normal 
 	'modsave': r'\[Jrn\.ModelOperation\].*Rvt\.Attr\.Scenario: ModelSave.*Rvt.Attr.Worksharing: (.*?) Rvt\.Attr\.ModelState:',
 	# Used to retrieve worksharing status while saving to the cloud:
 	# >>> Jrn.AddInEvent "AddInJournaling"  , "WpfWindow(SaveAsCloudModelWindow,Save as Cloud Model).WpfSaveAsCloudModelBrowser(0,browser).Action(Save,b\.???,US,b\.???,__SHA,urn:adsk\.wipprod:fs\.folder:co\.???,???)" 
-	'savecloud': r'Jrn\.AddInEvent.*WpfWindow(SaveAsCloudModelWindow,(.*?)).WpfSaveAsCloudModelBrowser',
+	'savecloud':  r'Jrn.AddInEvent "AddInJournaling".*SaveAsCloudModelWindow,Save as\s*(.*?)\).WpfSaveAsCloudModelBrowser',
+	# Check status again for a collaborative cloud mode:
+	# >>>  0:< Initialize: EnableCloudCollaboration : enabling A360 collaboration using model name "???" and A360 project " Id: ??? Version: 0 Name: __SHA ExternalServices: System.Collections.Generic.List`1[Autodesk.Revit.DB.Collaborate.Interface.IExternalService]". 
+	'collab': r'EnableCloudCollaboration.*enabling (.*?) using model name',
 
 	# Command process is interrupted by user pushing the ui button:
 	# >>> 'H 29-Aug-2023 23:58:27.246;   0:< Jrn.Data  _ "File Name"  , "IDCANCEL" , "" 
@@ -60,9 +63,9 @@ class RevitJournal:
 		self.path = path
 		self.data = {
 			'name':  os.path.basename(path),
-			'path': path,
-			'build': None,
-			'user': None,
+			# 'path': path,
+			# 'build': None,
+			# 'user': None,
 			'ops': []
 		}
 
@@ -117,23 +120,20 @@ class RevitJournal:
 
 					# we try to extract the data for started command from all suitable schemes:
 					if cmd['cmd'] == 'open' and not 'file' in cmd:
-
 							open_file = self._get_cmd_file([schemes['model_browser'], schemes['idok']], l)
 							if open_file: cmd['file'] = open_file
 
 					elif cmd['cmd'] == 'save' and not 'file' in cmd:
-
-							save_file = self._get_cmd_file([schemes['onsave'], schemes['init'], schemes['idok']], l)
+							save_file = self._get_cmd_file([schemes['onsave'], schemes['idok'], schemes['file_info'], schemes['ascloud']], l)
 							if save_file: cmd['file'] = save_file
 
 					elif cmd['cmd'] == 'sync' and not 'file' in cmd:
-
-							sync_file = self._get_cmd_file([schemes['init'], schemes['file_info']], l)
+							sync_file = self._get_cmd_file([schemes['file_info'], schemes['ascloud']], l)
 							if sync_file: cmd['file'] = sync_file
 
 					# cathing worksharing state
-					if 'file' in cmd and not 'status' in cmd:
-						status = self._get_cmd_status([schemes['worksharing'], schemes['modsave'], schemes['savecloud']], l)
+					if not 'status' in cmd or cmd['status'] == 'Cloud Model':
+						status = self._get_cmd_status([schemes['worksharing'], schemes['modsave'], schemes['savecloud'], schemes['collab']], l)
 						if status: cmd['status'] = status
 
 				li += 1
@@ -158,6 +158,7 @@ class RevitJournal:
 		for s in schemes:
 			q = re.search(s, line)
 			if q and q.group(1):
+				# print (s + ', ' + q.group(1))
 				if '/' in q.group(1) or '\\' in q.group(1):
 					file = re.search(r'[\\/](?=[^\\/]*$)(.+)$', q.group(1))
 					return file.group(1)
@@ -169,6 +170,6 @@ class RevitJournal:
 	def _get_cmd_status(schemes, line):
 		for s in schemes:
 			q = re.search(s, line)
-			if q and q.group(1):
+			if q:
 				return q.group(1)
 				break
