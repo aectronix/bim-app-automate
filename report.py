@@ -18,7 +18,7 @@ for journal in cde.journals:
 	# print(journal.data['ops']['open'])
 	if journal.data['ops']:
 		comNum = comNum + len(journal.data['ops'])
-		print(json.dumps(journal.data, indent = 4))
+		print(json.dumps(journal.data, ensure_ascii=False, indent = 4))
 
 
 print(comNum)
