@@ -90,6 +90,7 @@ class RevitJournal:
 		self.data = {
 			'name':  os.path.basename(path),
 			'path': path,
+			'mtime': os.path.getmtime(path),
 			'build': None,
 			'user': None,
 			'ops': []

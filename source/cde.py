@@ -56,6 +56,8 @@ class CDE:
 		self.journal_pathes = journal_pathes
 		#return journal_pathes
 
+		# TODO: filter journal by modifitaction timestamp
+
 
 	def get_journal_data(self):
 		"""Creates Journal from all text files and returns list of them
