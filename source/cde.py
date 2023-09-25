@@ -1,67 +1,71 @@
 import os
+import re
+
 from .journal import RevitJournal
 
-USER_DIRECTORY = '\\C$\\Users'
-JOURNAL_DIRECTORY = '\\AppData\\Local\\Autodesk\\Revit'
-JOURNALS_FOLDER_NAME = 'Journals'
-FILTERS = {'user': ['All Users', 'archadm', 'Default', 'Default User', 'Public', 'Администратор', 'Все пользователи']}
+config = {
+	'usr_dir': '\\C$\\Users',
+	'rvt_dir': '\\AppData\\Local\\Autodesk\\Revit',
+	'jrn_dir': 'Journals',
+	'filters': {
+		'user': ['All Users', 'archadm', 'Default', 'Default User', 'Public', 'Администратор', 'Все пользователи']
+	}
+}
 
 class CDE:
-	def __init__(self, host):
+
+	__slots__ = ['host', 'usr_dirs', 'journals']
+
+	def __init__(self, host: str):
+
 		self.host = host
-		self.user_directories = None
-		self.journal_pathes = None
+		self.usr_dirs = None
 		self.journals = None
 
-		self.get_host_user_directories()
-		self.get_journal_pathes()
-		self.get_journal_data()
+		self.getHostUsers()
+		self.getJournalPaths()
+		# self.getJournalData()
 
 
-	def get_host_user_directories(self):
-		"""Returns filtered list of the host directories for each user 
-		"""
-		host_user_directory = self.host + USER_DIRECTORY
-		user_directories = [os.path.join(host_user_directory, directory) for directory in os.listdir(host_user_directory) 
-																			if not directory in FILTERS['user']]
-		user_directories = [directory for directory in user_directories if os.path.isdir(directory)]
+	def getHostUsers(self):
 
-		self.user_directories = user_directories
-		#return user_directories
+		usr_dir = self.host + config['usr_dir']
+		usr_dirs = [os.path.join(usr_dir, d) for d in os.listdir(usr_dir) if not d in config['filters']['user']]
+		usr_dirs = [d for d in usr_dirs if os.path.isdir(d)]
+
+		self.usr_dirs = usr_dirs
 
 
-	def get_journal_pathes(self):
-		"""Returns list of all journal text file pathes
-		"""
-		journal_pathes = list()
-		for user_directory in self.user_directories:
-			path = user_directory + JOURNAL_DIRECTORY
+	def getJournalPaths(self):
+
+		paths = list()
+		for ud in self.usr_dirs:
+			path = ud + config['rvt_dir']
 
 			if os.path.isdir(path):
-				revit_versions = [os.path.join(path, directory) for directory in os.listdir(path) if 'Autodesk Revit 20' in directory]
-				for revit_version in revit_versions:
-					journal_path = os.path.join(revit_version, JOURNALS_FOLDER_NAME)
-
-					if os.path.isdir(journal_path):
-						current_journals = [current for current in os.listdir(journal_path) if '.txt' in current]
-						current_journals = [current for current in current_journals if '.abbrev' not in current]
-						current_journals_pathes = [os.path.join(journal_path, current) for current in current_journals]
-						journal_pathes += current_journals_pathes
+				version = [os.path.join(path, directory) for directory in os.listdir(path) if 'Autodesk Revit 20' in directory]
+				for v in version:
+					jpath = os.path.join(v, config['jrn_dir'])
+					if os.path.isdir(jpath):
+						journals = [j for j in os.listdir(jpath) if re.match(r'.*\.txt$', j)]
+						paths += [os.path.join(jpath, j) for j in journals]
 					else: print("No Autodesk Revit journal folder found:(")
 
 			else: print("No Autodesk Revit folder found:(")
 
-		if not journal_pathes: print("No Autodesk Revit journals found:(")
+		if not paths: print("No Autodesk Revit journals found:(")
 
-		self.journal_pathes = journal_pathes
-		#return journal_pathes
+		self.journals = paths
 
-		# TODO: filter journal by modifitaction timestamp
+	# TODO: filter journals by modification datetime
+
+	def getJournalProp(self):
+
+		print('journal sys info')
 
 
-	def get_journal_data(self):
-		"""Creates Journal from all text files and returns list of them
-		"""
-		journals = [RevitJournal(current) for current in self.journal_pathes]
-		self.journals = journals
-		#return journals
+	def getJournalData(self):
+
+		data = [RevitJournal(j) for j in self.journals]
+		
+		return data

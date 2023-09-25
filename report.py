@@ -13,7 +13,7 @@ arg = cmd.parse_args()
 cde = source.CDE(arg.dest)
 
 comNum = 0
-for journal in cde.journals:
+for journal in cde.getJournalData():
 	# print('.')
 	# print(journal.data['ops']['open'])
 	if journal.data['ops']:
