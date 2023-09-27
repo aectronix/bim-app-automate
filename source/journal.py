@@ -82,21 +82,20 @@ schemes = {
 
 class RevitJournal:
 
-	__slots__ = ['name', 'path', 'build', 'data']
+	__slots__ = ['name', 'path', 'mtime', 'data']
 
 	def __init__(self, path: str):
 
+		self.name = os.path.basename(path),
 		self.path = path
+		self.mtime = os.path.getmtime(path),
 		self.data = {
-			'name':  os.path.basename(path),
-			'path': path,
-			'mtime': os.path.getmtime(path),
 			'build': None,
 			'user': None,
 			'ops': []
 		}
 
-		self.getJournalData()
+		# self.getJournalData()
 
 	def getJournalData(self):
 
