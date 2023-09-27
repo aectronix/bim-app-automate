@@ -2,6 +2,7 @@ import os
 import re
 
 from .journal import RevitJournal
+from .db import DB
 
 config = {
 	'usr_dir': '\\C$\\Users',
@@ -14,12 +15,14 @@ config = {
 
 class CDE:
 
-	__slots__ = ['host', 'user_dirs']
+	#__slots__ = ['host', 'user_dirs']
 
 	def __init__(self, host: str):
 
 		self.host = host
 		self.user_dirs = None
+
+		self.db = DB()
 
 		self.getUserDirs()
 
@@ -51,6 +54,7 @@ class CDE:
 								mtime = os.path.getmtime(os.path.join(vpath, j))
 								if mtime >= 1693834568:											# TODO: change to base
 									paths.append(os.path.join(vpath, j))
+									self.db.addJournalItem(j, mtime, '0000', 'login')
 
 					else: print('No Autodesk Revit journal folder found')
 
