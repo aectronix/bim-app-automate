@@ -56,18 +56,18 @@ class CDE:
 								# parse journals, pick up only new and modified
 								jpath = os.path.join(vpath, j)
 								mtime = math.floor(os.path.getmtime(os.path.join(vpath, j)))
-								# c = self.db.dbcon.cursor()
-								# q = c.execute('SELECT id, mtime, name, path FROM journals WHERE name = ? AND path = ? AND mtime = ?', (j, jpath, mtime))
-								# r = q.fetchone()
+								c = self.db.dbcon.cursor()
+								q = c.execute('SELECT id, mtime, name, path FROM journals WHERE name = ? AND path = ? AND mtime = ?', (j, jpath, mtime))
+								r = q.fetchone()
 
-								# if not r:
-								jid = str(uuid.uuid4())
-								paths.append({'id': jid, 'path': jpath})
-								# 	self.db.addJournalItem(jid, mtime, j, jpath)
+								if not r:
+									jid = str(uuid.uuid4())
+									paths.append({'id': jid, 'path': jpath})
+									self.db.addJournalItem(jid, mtime, j, jpath)
 
-								# elif mtime > r[1]:
-								# 	q = c.execute('UPDATE journals SET mtime = ? WHERE id = ?', (mtime, r[0]))
-								# 	paths.append({'id': r[0], 'path': jpath})
+								elif mtime > r[1]:
+									q = c.execute('UPDATE journals SET mtime = ? WHERE id = ?', (mtime, r[0]))
+									paths.append({'id': r[0], 'path': jpath})
 
 
 					else: print('No journal folder found')

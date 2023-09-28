@@ -25,10 +25,11 @@ for j in journals:
 	# print('.')
 	# print(journal.data['ops']['open'])
 	if j:
-		print(j.name)
+		# print(j.name)
 		for c in j.commands:
-			print(c.name)
-		# print(json.dumps(j.data, ensure_ascii=False, indent = 4))
+			# print([c.name, c.file, c.size, c.status])
+			print(json.dumps({'id': j.uuid, 'journal': j.name, 'build': j.build, 'commands': { 'idx': c.idx, 'type': c.type, 'command': c.name, 'date': c.date, 'file': c.file, 'size': c.size, 'status': c.status}}, ensure_ascii=False, indent = 4))
+			comNum += 1
 		# print(json.dumps(j.data, ensure_ascii=False, indent = 4))
 
 

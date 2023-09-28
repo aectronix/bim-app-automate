@@ -87,8 +87,8 @@ class RevitJournal:
 	def __init__(self, uuid: str, path: str):
 
 		self.uuid = uuid
-		self.name = os.path.basename(path)
 		self.path = path
+		self.name = os.path.basename(path)
 		self.mtime = os.path.getmtime(path)
 		self.build = None
 		self.user = None
@@ -119,13 +119,9 @@ class RevitJournal:
 				for c in commands:
 					command = re.search(c[next(iter(c))], l)
 					if command:
-						if self.commands:
-							cmd = self.commands[-1]
-							if isinstance(cmd, RevitCommand) and cmd.file:
-								del self.commands[-1]
+						if self.commands and isinstance(self.commands[-1], RevitCommand) and not self.commands[-1].file:
+							del self.commands[-1]
 						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-						if not self.commands:
-							self.commands = []
 						self.commands.append(RevitCommand(li+1, next(iter(c)), command.group(1), date.group(0)))
 						break
 
@@ -147,17 +143,17 @@ class RevitJournal:
 					if not cmd.file:
 						fname = self._parse_by_scheme([schemes['idok'], schemes['detect'], schemes['finfo']], l)
 						for d in fname:
-							if not hasattr(RevitCommand, d): setattr(RevitCommand, d, fname[d])
+							if not getattr(cmd, d): setattr(cmd, d, fname[d])
 
 					if not cmd.size:
 						size = self._parse_by_scheme([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
 						for d in size:
-							if not hasattr(RevitCommand, d): setattr(RevitCommand, d, size[d])
+							if not getattr(cmd, d): setattr(cmd, d, size[d])
 
 					if not cmd.status:
 						status = self._parse_by_scheme([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 						for d in status:
-							if not hasattr(RevitCommand, d): setattr(RevitCommand, d, status[d])
+							if not getattr(cmd, d): setattr(cmd, d, status[d])
 
 				li += 1
 
@@ -172,7 +168,7 @@ class RevitJournal:
 					for i in range(len(s['items'])):
 						# distinguish name from path 
 						if s['items'][i] == 'file':
-							result['path'] = q.group(i+1)
+							result['filepath'] = q.group(i+1)
 							file = re.search(schemes['file'], q.group(i+1))
 							if file and not re.match(schemes['uuid'], file.group(1)):
 								result['file'] = file.group(1)
