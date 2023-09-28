@@ -1,8 +1,9 @@
+import math
 import os
 import re
+import uuid
 
 from .journal import RevitJournal
-from .db import DB
 
 config = {
 	'usr_dir': '\\C$\\Users',
@@ -17,12 +18,12 @@ class CDE:
 
 	#__slots__ = ['host', 'user_dirs']
 
-	def __init__(self, host: str):
+	def __init__(self, host: str, db):
 
 		self.host = host
 		self.user_dirs = None
 
-		self.db = DB()
+		self.db = db
 
 		self.getUserDirs()
 
@@ -36,7 +37,7 @@ class CDE:
 		self.user_dirs = user_dirs
 
 
-	def getJournals(self, filter = True):
+	def getJournals(self):
 
 		paths = list()
 		for ud in self.user_dirs:
@@ -51,23 +52,36 @@ class CDE:
 						for j in os.listdir(vpath):
 
 							if re.match(r'.*\.txt$', j):
-								mtime = os.path.getmtime(os.path.join(vpath, j))
-								if mtime >= 1693834568:											# TODO: change to base
-									paths.append(os.path.join(vpath, j))
-									self.db.addJournalItem(j, mtime, '0000', 'login')
 
-					else: print('No Autodesk Revit journal folder found')
+								# parse journals, pick up only new and modified
+								jpath = os.path.join(vpath, j)
+								mtime = math.floor(os.path.getmtime(os.path.join(vpath, j)))
+								# c = self.db.dbcon.cursor()
+								# q = c.execute('SELECT id, mtime, name, path FROM journals WHERE name = ? AND path = ? AND mtime = ?', (j, jpath, mtime))
+								# r = q.fetchone()
 
-			else: print('No Autodesk Revit folder found')
+								# if not r:
+								jid = str(uuid.uuid4())
+								paths.append({'id': jid, 'path': jpath})
+								# 	self.db.addJournalItem(jid, mtime, j, jpath)
 
-		if not paths: print('No Autodesk Revit journals found:')
+								# elif mtime > r[1]:
+								# 	q = c.execute('UPDATE journals SET mtime = ? WHERE id = ?', (mtime, r[0]))
+								# 	paths.append({'id': r[0], 'path': jpath})
+
+
+					else: print('No journal folder found')
+
+			else: print('No Revit folder found')
+
+		if not paths: print('No journals found or there are any new journals')
 
 		return paths
 
 	# TODO: filter journals by modification datetime
 
-	def getJournalsData(self, pathlist: list):
+	def getJournalsData(self, journals: list):
 
-		data = [RevitJournal(j) for j in pathlist]
+		data = [RevitJournal(j['id'], j['path']) for j in journals]
 		
 		return data

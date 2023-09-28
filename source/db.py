@@ -1,7 +1,6 @@
 import sqlite3
 import os
 import time
-import uuid
 
 class DB:
 
@@ -25,20 +24,20 @@ class DB:
 
 	def tables(self):
 
-		c = self.dbcon.cursor()
-
 		try:
+			c = self.dbcon.cursor()
 			c.execute('SELECT * FROM journals')
 
 		except sqlite3.Error as e:
 			print(f'SQLite error: {e}')
 			c.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
-				(id text primary key, name text, mtime real, build text, user text)'
+				(id text primary key, mtime integer, name text, path text)'
 			)
 
-	def addJournalItem(self, name: str, mtime: float, build: str, user: str):
+
+	def addJournalItem(self, uuid: str, mtime: int, name: str, path: str):
 
 		c = self.dbcon.cursor()
-		c.execute("INSERT INTO journals (id, name, mtime, build, user) VALUES (?, ?, ?, ?, ?)", (str(uuid.uuid4()), name, mtime, build, user))
+		c.execute("INSERT INTO journals (id, mtime, name, path) VALUES (?, ?, ?, ?)", (uuid, mtime, name, path))
 		self.dbcon.commit()

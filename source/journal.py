@@ -82,22 +82,21 @@ schemes = {
 
 class RevitJournal:
 
-	__slots__ = ['name', 'path', 'mtime', 'data']
+	__slots__ = ['uuid', 'name', 'path', 'mtime', 'build', 'user', 'commands']
 
-	def __init__(self, path: str):
+	def __init__(self, uuid: str, path: str):
 
-		self.name = os.path.basename(path),
+		self.uuid = uuid
+		self.name = os.path.basename(path)
 		self.path = path
-		self.mtime = os.path.getmtime(path),
-		self.data = {
-			'build': None,
-			'user': None,
-			'ops': []
-		}
+		self.mtime = os.path.getmtime(path)
+		self.build = None
+		self.user = None
+		self.commands = list()
 
-		# self.getJournalData()
+		self.getCommandData()
 
-	def getJournalData(self):
+	def getCommandData(self):
 
 		with open(self.path, 'r') as file:
 
@@ -109,55 +108,56 @@ class RevitJournal:
 				# builds
 				build = re.search(r"' Build:\s+(\S+)", l)
 				if build:
-					self.data['build'] = build.group(1)
+					self.build = build.group(1)
 
 				# users
 				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
 				if user:
-					self.data['user'] = user.group(1)
+					self.user = user.group(1)
 
 				# try to catch the commands
 				for c in commands:
 					command = re.search(c[next(iter(c))], l)
 					if command:
-						if self.data['ops'] and not 'file' in self.data['ops'][-1]:
-							del self.data['ops'][-1]
+						if self.commands:
+							cmd = self.commands[-1]
+							if isinstance(cmd, RevitCommand) and cmd.file:
+								del self.commands[-1]
 						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-						self.data['ops'].append({'idx': li+1, 'type': next(iter(c)), 'command': command.group(1), 'date': date.group(0)})
+						if not self.commands:
+							self.commands = []
+						self.commands.append(RevitCommand(li+1, next(iter(c)), command.group(1), date.group(0)))
 						break
 
 				# get the ast entry if exists
-				if self.data['ops']:
-					cmd = self.data['ops'][-1]
+				if self.commands and isinstance(self.commands[-1], RevitCommand):
+					cmd = self.commands[-1]
 
 					# cancellation & errors
-					if (self._parse_by_scheme([schemes['idcancel']], l) and not 'file' in cmd) or self._parse_by_scheme([schemes['btcancel'], schemes['error'], schemes['error403']], l):
-						del self.data['ops'][-1]
+					if (self._parse_by_scheme([schemes['idcancel']], l) and not cmd.file) or self._parse_by_scheme([schemes['btcancel'], schemes['error'], schemes['error403']], l):
+						del self.commands[-1]
 
 					# transform exit commands into the final ones
-					if cmd['type'] == 'exit':
+					if cmd.type == 'exit':
 						task = self._parse_by_scheme([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
-						if not task: del self.data['ops'][-1]
-						else: cmd['type'] = task['type']
+						if not task: del self.commands[-1]
+						else: cmd.type = task['type']
 
 					# try parsing schemes to retrieve the data
-					if not 'file' in cmd:
+					if not cmd.file:
 						fname = self._parse_by_scheme([schemes['idok'], schemes['detect'], schemes['finfo']], l)
 						for d in fname:
-							if not d in cmd:
-								cmd[d] = fname[d]
+							if not hasattr(RevitCommand, d): setattr(RevitCommand, d, fname[d])
 
-					if not 'size' in cmd:
+					if not cmd.size:
 						size = self._parse_by_scheme([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
 						for d in size:
-							if not d in cmd:
-								cmd[d] = size[d]
+							if not hasattr(RevitCommand, d): setattr(RevitCommand, d, size[d])
 
-					if not 'status' in cmd:
+					if not cmd.status:
 						status = self._parse_by_scheme([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 						for d in status:
-							if not d in cmd:
-								cmd[d] = status[d]
+							if not hasattr(RevitCommand, d): setattr(RevitCommand, d, status[d])
 
 				li += 1
 
@@ -185,3 +185,17 @@ class RevitJournal:
 					result[s['items'][0]] = s['match']
 				break
 		return result
+
+
+class RevitCommand:
+
+	def __init__(self, idx: int, type: str, name: str, date: str):
+
+		self.idx = idx
+		self.type = type
+		self.name = name
+		self.date = date
+		self.file = None
+		self.filepath = None
+		self.size = None
+		self.status = None
