@@ -3,7 +3,9 @@ import os
 import re
 import uuid
 
+from .db import DB
 from .journal import RevitJournal
+from .system import System
 
 config = {
 	'usr_dir': '\\C$\\Users',
@@ -14,16 +16,12 @@ config = {
 	}
 }
 
-class CDE:
+class CDE (System):
 
-	#__slots__ = ['host', 'user_dirs']
-
-	def __init__(self, host: str, db):
+	def __init__(self, host: str):
 
 		self.host = host
 		self.user_dirs = None
-
-		self.db = db
 
 		self.getUserDirs()
 
@@ -37,7 +35,7 @@ class CDE:
 		self.user_dirs = user_dirs
 
 
-	def getJournals(self):
+	def getJournals(self, bSync = True):
 
 		paths = list()
 		for ud in self.user_dirs:
@@ -53,21 +51,29 @@ class CDE:
 
 							if re.match(r'.*\.txt$', j):
 
-								# parse journals, pick up only new and modified
 								jpath = os.path.join(vpath, j)
 								mtime = math.floor(os.path.getmtime(os.path.join(vpath, j)))
-								c = self.db.dbcon.cursor()
-								q = c.execute('SELECT id, mtime, name, path FROM journals WHERE name = ? AND path = ? AND mtime = ?', (j, jpath, mtime))
-								r = q.fetchone()
 
-								if not r:
-									jid = str(uuid.uuid4())
+								db = DB()
+								query = db.cursor.execute('SELECT id, mtime, name, path FROM journals WHERE name = ? AND path = ?', (j, jpath))
+								row = query.fetchone()
+
+								if row:
+									jid = row[0]
+									if bSync:
+										if mtime > row[1]:
+											paths.append({'id': jid, 'path': jpath})
+										else:
+											pass
+
+								else:
+									jid = None
 									paths.append({'id': jid, 'path': jpath})
-									self.db.addJournalItem(jid, mtime, j, jpath)
 
-								elif mtime > r[1]:
-									q = c.execute('UPDATE journals SET mtime = ? WHERE id = ?', (mtime, r[0]))
-									paths.append({'id': r[0], 'path': jpath})
+
+								# jid = row[0] if row else None
+								# if not dbsync or not row or (dbsync, row and mtime > row[1]):
+								# 	paths.append({'id': jid, 'path': jpath})
 
 
 					else: print('No journal folder found')
@@ -83,5 +89,5 @@ class CDE:
 	def getJournalsData(self, journals: list):
 
 		data = [RevitJournal(j['id'], j['path']) for j in journals]
-		
+
 		return data

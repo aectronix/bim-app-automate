@@ -3,6 +3,9 @@ import re
 
 from datetime import datetime
 
+from .system import System
+# from source.db import DB
+
 # The bunch of schemes to extract the primary command
 commands = [
 	# open from ribbon menu
@@ -82,7 +85,7 @@ schemes = {
 
 class RevitJournal:
 
-	__slots__ = ['uuid', 'name', 'path', 'mtime', 'build', 'user', 'commands']
+	__slots__ = ['uuid', 'name', 'path', 'mtime', 'build', 'user', 'commands', 'db']
 
 	def __init__(self, uuid: str, path: str):
 
@@ -95,6 +98,7 @@ class RevitJournal:
 		self.commands = list()
 
 		self.getCommandData()
+
 
 	def getCommandData(self):
 

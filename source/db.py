@@ -2,12 +2,15 @@ import sqlite3
 import os
 import time
 
-class DB:
+from .system import System
+
+class DB (System):
 
 	def __init__(self):
 
-		self.dbpath = os.path.dirname(__file__).split('source')[0] + 'journals.db'
-		self.dbcon = None
+		self.path = os.path.dirname(__file__).split('source')[0] + 'journals.db'
+		self.connection = None
+		self.cursor = None
 
 		self.connect()
 		self.tables()
@@ -15,8 +18,8 @@ class DB:
 	def connect(self):
 
 		try:
-			connect = sqlite3.connect(self.dbpath)
-			self.dbcon = connect
+			self.connection = sqlite3.connect(self.path)
+			self.cursor = self.connection.cursor()
 
 		except sqlite3.Error as e:
 			print(f'SQLite error: {e}')
@@ -25,12 +28,11 @@ class DB:
 	def tables(self):
 
 		try:
-			c = self.dbcon.cursor()
-			c.execute('SELECT * FROM journals')
+			self.cursor.execute('SELECT * FROM journals')
 
 		except sqlite3.Error as e:
 			print(f'SQLite error: {e}')
-			c.execute(
+			self.c.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
 				(id text primary key, mtime integer, name text, path text)'
 			)
@@ -38,6 +40,11 @@ class DB:
 
 	def addJournalItem(self, uuid: str, mtime: int, name: str, path: str):
 
-		c = self.dbcon.cursor()
-		c.execute("INSERT INTO journals (id, mtime, name, path) VALUES (?, ?, ?, ?)", (uuid, mtime, name, path))
-		self.dbcon.commit()
+		self.cursor.execute("INSERT INTO journals (id, mtime, name, path) VALUES (?, ?, ?, ?)", (uuid, mtime, name, path))
+		self.cursor.commit()
+
+
+	def addCommandItem(self, uuid: str, idx: int, type: str, name: str, date: str, file: str, size: int, status: str):
+
+		self.cursor.execute("INSERT INTO commands (id, idx, type, name, date, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (uuid, idx, type, name, date, file, size, status))
+		self.cursor.commit()

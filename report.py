@@ -5,22 +5,36 @@ import time
 import source
 from source.db import DB
 
+from smb.SMBConnection import SMBConnection
+
 start_time = time.time()
 
 cmd = argparse.ArgumentParser()
 cmd.add_argument('-d', '--dest', required=True, help='Destination')
 arg = cmd.parse_args()
 
-cde = source.CDE(arg.dest, DB())
+cde = source.CDE(arg.dest)
 journals = cde.getJournalsData(cde.getJournals())
 
+
+# conn = SMBConnection('x', 'x', '', '10.8.88.206', use_ntlm_v2=True, is_direct_tcp=True)
+
+# try:
+# 	conn.connect('10.8.89.97', 445)
+# 	for i in conn.listPath('C$', '/'):
+# 		print(i.filename)
+
+# except Exception as e:
+# 		print(f"Error: {str(e)}")
+
+
 comNum = 0
-# for journal in cde.getJournalData():
-# 	# print('.')
-# 	# print(journal.data['ops']['open'])
-# 	if journal.data['ops']:
-# 		comNum = comNum + len(journal.data['ops'])
-# 		print(json.dumps(journal.data, ensure_ascii=False, indent = 4))
+# # for journal in cde.getJournalData():
+# # 	# print('.')
+# # 	# print(journal.data['ops']['open'])
+# # 	if journal.data['ops']:
+# # 		comNum = comNum + len(journal.data['ops'])
+# # 		print(json.dumps(journal.data, ensure_ascii=False, indent = 4))
 for j in journals:
 	# print('.')
 	# print(journal.data['ops']['open'])
@@ -33,7 +47,7 @@ for j in journals:
 		# print(json.dumps(j.data, ensure_ascii=False, indent = 4))
 
 
-print('\n' + str(comNum))
+# print('\n' + str(comNum))
 
 # print(json.dumps(journals, indent = 4))
 
