@@ -1,11 +1,15 @@
 import argparse
 import json
+import math
+import os
 import time
-
-import source
-from source.db import DB
+import uuid
 
 from smb.SMBConnection import SMBConnection
+
+from source.cde import CDE
+from source.db import DB
+
 
 start_time = time.time()
 
@@ -13,42 +17,45 @@ cmd = argparse.ArgumentParser()
 cmd.add_argument('-d', '--dest', required=True, help='Destination')
 arg = cmd.parse_args()
 
-cde = source.CDE(arg.dest)
-journals = cde.getJournalsData(cde.getJournals())
+def runCollector():
 
+	db = DB()
+	cde = CDE(arg.dest)
+	journals = cde.getJournals()
+	filtered = list()
 
-# conn = SMBConnection('x', 'x', '', '10.8.88.206', use_ntlm_v2=True, is_direct_tcp=True)
+	cc = 0
 
-# try:
-# 	conn.connect('10.8.89.97', 445)
-# 	for i in conn.listPath('C$', '/'):
-# 		print(i.filename)
+	# retrieve journals, sync new or modified with database
+	for jpath in journals:
+		mtime = math.floor(os.path.getmtime(jpath))
+		jrn = db.cursor.execute('SELECT * FROM journals WHERE name = ? AND path = ?', (os.path.basename(jpath), jpath)).fetchone()						
 
-# except Exception as e:
-# 		print(f"Error: {str(e)}")
+		if not jrn:
+			jid = str(uuid.uuid4())
+			filtered.append({'id': jid, 'path': jpath})
+			db.addJournalItem(jid, mtime, os.path.basename(jpath), jpath)
+		elif jrn[1] < mtime:
+			filtered.append({'id': jrn[0], 'path': jpath})
+			db.cursor.execute('UPDATE journals SET mtime = ? WHERE id = ?', (mtime, jrn[0]))
+			db.connection.commit()
 
-
-comNum = 0
-# # for journal in cde.getJournalData():
-# # 	# print('.')
-# # 	# print(journal.data['ops']['open'])
-# # 	if journal.data['ops']:
-# # 		comNum = comNum + len(journal.data['ops'])
-# # 		print(json.dumps(journal.data, ensure_ascii=False, indent = 4))
-for j in journals:
-	# print('.')
-	# print(journal.data['ops']['open'])
-	if j:
-		# print(j.name)
+	# get journal & command data, save new commands
+	for j in cde.getJournalsData(filtered):
 		for c in j.commands:
-			# print([c.name, c.file, c.size, c.status])
-			print(json.dumps({'id': j.uuid, 'journal': j.name, 'build': j.build, 'commands': { 'idx': c.idx, 'type': c.type, 'command': c.name, 'date': c.date, 'file': c.file, 'size': c.size, 'status': c.status}}, ensure_ascii=False, indent = 4))
-			comNum += 1
-		# print(json.dumps(j.data, ensure_ascii=False, indent = 4))
+			# if j:
+			# 	print(j.name)
+			if j and c:
 
+				com = db.cursor.execute('SELECT * FROM commands WHERE jid = ? AND idx = ? AND type = ? AND name = ? AND dt = ? AND build = ?', (j.id, c.idx, c.type, c.name, c.dt, c.build)).fetchone()
+				if not com:
+					db.addCommandItem(str(uuid.uuid4()), j.id, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status, c.build, c.user)
+					print(json.dumps({'id': j.id, 'journal': j.name, 'build': j.build, 'user': j.user, 'commands': { 'idx': c.idx, 'type': c.type, 'command': c.name, 'date': c.dt, 'file': c.file, 'size': c.size, 'status': c.status}}, ensure_ascii=False, indent = 4))
+					cc += 1
 
-# print('\n' + str(comNum))
+	print(cc)
 
-# print(json.dumps(journals, indent = 4))
+runCollector()
+
 
 print("%s sec" % (time.time() - start_time))

@@ -1,5 +1,6 @@
 import os
 import re
+import uuid
 
 from datetime import datetime
 
@@ -85,11 +86,11 @@ schemes = {
 
 class RevitJournal:
 
-	__slots__ = ['uuid', 'name', 'path', 'mtime', 'build', 'user', 'commands', 'db']
+	__slots__ = ['id', 'name', 'path', 'mtime', 'build', 'user', 'commands']
 
-	def __init__(self, uuid: str, path: str):
+	def __init__(self, id, path: str):
 
-		self.uuid = uuid
+		self.id = id
 		self.path = path
 		self.name = os.path.basename(path)
 		self.mtime = os.path.getmtime(path)
@@ -97,17 +98,17 @@ class RevitJournal:
 		self.user = None
 		self.commands = list()
 
-		self.getCommandData()
+		self.getSchemeData()
 
 
-	def getCommandData(self):
+	def getSchemeData(self):
 
 		with open(self.path, 'r') as file:
 
 			lines = file.readlines()
 			li = 0
 
-			for l in lines[:-1]:
+			for l in lines[:-2]:
 
 				# builds
 				build = re.search(r"' Build:\s+(\S+)", l)
@@ -115,7 +116,7 @@ class RevitJournal:
 					self.build = build.group(1)
 
 				# users
-				user = re.search(r'"Username"\s*,\s*"([^"]*)"', l)
+				user = re.search(r'"Username".*"(.*?)"', re.sub(r'\s+', ' ', l + lines[li+1]))
 				if user:
 					self.user = user.group(1)
 
@@ -126,7 +127,7 @@ class RevitJournal:
 						if self.commands and isinstance(self.commands[-1], RevitCommand) and not self.commands[-1].file:
 							del self.commands[-1]
 						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-						self.commands.append(RevitCommand(li+1, next(iter(c)), command.group(1), date.group(0)))
+						self.commands.append(RevitCommand(self.id, li+1, next(iter(c)), command.group(1), date.group(0), self.build, self.user))
 						break
 
 				# get the ast entry if exists
@@ -140,8 +141,7 @@ class RevitJournal:
 					# transform exit commands into the final ones
 					if cmd.type == 'exit':
 						task = self._parse_by_scheme([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
-						if not task: del self.commands[-1]
-						else: cmd.type = task['type']
+						if task: cmd.type = task['type']
 
 					# try parsing schemes to retrieve the data
 					if not cmd.file:
@@ -158,6 +158,9 @@ class RevitJournal:
 						status = self._parse_by_scheme([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 						for d in status:
 							if not getattr(cmd, d): setattr(cmd, d, status[d])
+
+					if not cmd.build: cmd.build = self.build 
+					if not cmd.user: cmd.user = self.user 
 
 				li += 1
 
@@ -189,13 +192,17 @@ class RevitJournal:
 
 class RevitCommand:
 
-	def __init__(self, idx: int, type: str, name: str, date: str):
+	def __init__(self, jid: str, idx: int, type, name, dt, build, user: str):
 
+		self.id = str(uuid.uuid4())
+		self.jid = jid
 		self.idx = idx
 		self.type = type
 		self.name = name
-		self.date = date
+		self.dt = dt
 		self.file = None
 		self.filepath = None
 		self.size = None
 		self.status = None
+		self.build = None
+		self.user = None

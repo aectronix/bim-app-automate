@@ -1,6 +1,5 @@
 import sqlite3
 import os
-import time
 
 from .system import System
 
@@ -28,23 +27,29 @@ class DB (System):
 	def tables(self):
 
 		try:
+			# self.cursor.execute('SELECT * FROM jobs')
 			self.cursor.execute('SELECT * FROM journals')
+			# self.cursor.execute('SELECT * FROM commands')
 
 		except sqlite3.Error as e:
 			print(f'SQLite error: {e}')
-			self.c.execute(
+			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
 				(id text primary key, mtime integer, name text, path text)'
+			)
+			self.connection.execute(
+				'CREATE TABLE IF NOT EXISTS commands \
+				(id text primary key, jid text, idx int, type text, name text, dt date, file text, size int, status text, build text, user text)'
 			)
 
 
 	def addJournalItem(self, uuid: str, mtime: int, name: str, path: str):
 
 		self.cursor.execute("INSERT INTO journals (id, mtime, name, path) VALUES (?, ?, ?, ?)", (uuid, mtime, name, path))
-		self.cursor.commit()
+		self.connection.commit()
 
 
-	def addCommandItem(self, uuid: str, idx: int, type: str, name: str, date: str, file: str, size: int, status: str):
+	def addCommandItem(self, id: str, jid: str, idx: int, type: str, name: str, dt: str, file: str, size: int, status: str, build: str, user: str):
 
-		self.cursor.execute("INSERT INTO commands (id, idx, type, name, date, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (uuid, idx, type, name, date, file, size, status))
-		self.cursor.commit()
+		self.cursor.execute("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status, build, user) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, jid, idx, type, name, dt, file, size, status, build, user))
+		self.connection.commit()
