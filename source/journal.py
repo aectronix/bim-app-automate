@@ -70,6 +70,7 @@ schemes = {
 	# > Jrn.Data  _ "TaskDialogResult" , "Do you want to save changes to collaborateTest.rvt?" ,  _ "Yes"  _ , "IDYES" 
 	# > Jrn.Data  _ "TaskDialogResult" , "This is the first time that the project has been saved since Worksharing was enabled. This project will therefore become the central model. Do you want to save this project as the central model?" ,  _ "Yes"  _ , "IDYES" 
 	'saveyes': { 'pattern': r'Do you want to save.*"IDYES"', 'items': ['type'] , 'match': 'save' },
+	'savenot': { 'pattern': r'Do you want to save.*"IDNO"', 'items': ['type'] , 'match': 'save' },
 
 	# Detect cancellation or errors
 	# > Jrn.Data  _ "File Name"  , "IDCANCEL" , "" 
@@ -142,6 +143,8 @@ class RevitJournal:
 					if cmd.type == 'exit':
 						task = self._parse_by_scheme([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
 						if task: cmd.type = task['type']
+						elif self._parse_by_scheme([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
+							del self.commands[-1]
 
 					# try parsing schemes to retrieve the data
 					if not cmd.file:
@@ -160,9 +163,13 @@ class RevitJournal:
 							if not getattr(cmd, d): setattr(cmd, d, status[d])
 
 					if not cmd.build: cmd.build = self.build 
-					if not cmd.user: cmd.user = self.user 
+					if not cmd.user: cmd.user = self.user		
 
 				li += 1
+
+			# we don't need commands with empty object
+			if self.commands and self.commands[-1].type == 'exit':
+				del self.commands[-1]
 
 
 	@staticmethod
