@@ -35,21 +35,29 @@ class DB (System):
 			print(f'SQLite error: {e}')
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
-				(id text primary key, mtime integer, name text, path text)'
+				(id text primary key, name text, mtime integer, build text, user text, path text)'
 			)
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS commands \
-				(id text primary key, jid text, idx int, type text, name text, dt date, file text, size int, status text, build text, user text)'
+				(id text primary key, jid text, idx int, type text, name text, dt date, file text, size int, status text)'
 			)
 
 
-	def addJournalItem(self, uuid: str, mtime: int, name: str, path: str):
+	def upsJournalItem(self, uuid: str, name: str, mtime: int, build: str, user: str, path: str):
 
-		self.cursor.execute("INSERT INTO journals (id, mtime, name, path) VALUES (?, ?, ?, ?)", (uuid, mtime, name, path))
+		self.cursor.execute("INSERT INTO journals (id, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime", (uuid, name, mtime, build, user, path))
 		self.connection.commit()
 
 
-	def addCommandItem(self, id: str, jid: str, idx: int, type: str, name: str, dt: str, file: str, size: int, status: str, build: str, user: str):
+	def upsJournalItems(self, data):
 
-		self.cursor.execute("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status, build, user) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, jid, idx, type, name, dt, file, size, status, build, user))
+		self.cursor.executemany("INSERT INTO journals (id, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime", data)
 		self.connection.commit()
+
+
+	def addCommandItem(self, id: str, jid: str, idx: int, type: str, name: str, dt: str, file: str, size: int, status: str):
+
+		self.cursor.execute("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, jid, idx, type, name, dt, file, size, status))
+		self.connection.commit()
+
+		# 1692968903

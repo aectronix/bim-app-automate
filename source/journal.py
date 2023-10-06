@@ -1,3 +1,4 @@
+import math
 import os
 import re
 import uuid
@@ -8,7 +9,7 @@ from .system import System
 # from source.db import DB
 
 # The bunch of schemes to extract the primary command
-commands = [
+appcoms = [
 	# open from ribbon menu
 	# > Jrn.RibbonEvent "ModelBrowserOpenDocumentEvent:open:{""projectGuid"":null,""modelGuid"":null,""id"":""C:\\Users\\user\\Desktop\\saving_test.rvt"",""displayName"":""saving_test"",""region"":null,""modelVersion"":""0""}"
 	{ 'open': r'Jrn\.RibbonEvent.*(ModelBrowserOpenDocumentEvent:open)' },
@@ -94,57 +95,69 @@ class RevitJournal:
 		self.id = id
 		self.path = path
 		self.name = os.path.basename(path)
-		self.mtime = os.path.getmtime(path)
+		self.mtime = math.floor(os.path.getmtime(path))
 		self.build = None
 		self.user = None
-		self.commands = list()
 
-		self.getSchemeData()
+		self.getBasicData()
 
 
-	def getSchemeData(self):
+	def getBasicData(self):
 
 		with open(self.path, 'r') as file:
 
-			lines = file.readlines()
 			li = 0
+			lines = file.readlines()
+			d = len(lines) if len(lines) < 150 else 150
+
+			for l in lines[0:d-1]:
+
+				build = re.search(r'\s*Build:\s*(\S+)', l)
+				if build: self.build = build.group(1)
+
+				user = re.search(r'"Username".*"(.*?)"', re.sub(r'\s+', ' ', l + lines[li+1]))
+				if user: self.user = user.group(1)
+
+				if self.build and self.user: break
+
+				li += 1
+
+
+	def getCommandData(self):
+
+		commands = list()
+
+		with open(self.path, 'r') as file:
+
+			li = 0
+			lines = file.readlines()
 
 			for l in lines[:-2]:
 
-				# builds
-				build = re.search(r"' Build:\s+(\S+)", l)
-				if build:
-					self.build = build.group(1)
-
-				# users
-				user = re.search(r'"Username".*"(.*?)"', re.sub(r'\s+', ' ', l + lines[li+1]))
-				if user:
-					self.user = user.group(1)
-
 				# try to catch the commands
-				for c in commands:
-					command = re.search(c[next(iter(c))], l)
-					if command:
-						if self.commands and isinstance(self.commands[-1], RevitCommand) and not self.commands[-1].file:
-							del self.commands[-1]
+				for ac in appcoms:
+					appcom = re.search(ac[next(iter(ac))], l)
+					if appcom:
+						if commands and isinstance(commands[-1], RevitCommand) and not commands[-1].file:
+							del commands[-1]
 						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-						self.commands.append(RevitCommand(self.id, li+1, next(iter(c)), command.group(1), date.group(0), self.build, self.user))
+						commands.append(RevitCommand(self.id, li+1, next(iter(ac)), appcom.group(1), date.group(0), self.build, self.user))
 						break
 
 				# get the ast entry if exists
-				if self.commands and isinstance(self.commands[-1], RevitCommand):
-					cmd = self.commands[-1]
+				if commands and isinstance(commands[-1], RevitCommand):
+					cmd = commands[-1]
 
 					# cancellation & errors
 					if (self._parse_by_scheme([schemes['idcancel']], l) and not cmd.file) or self._parse_by_scheme([schemes['btcancel'], schemes['error'], schemes['error403']], l):
-						del self.commands[-1]
+						del commands[-1]
 
 					# transform exit commands into the final ones
 					if cmd.type == 'exit':
 						task = self._parse_by_scheme([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
 						if task: cmd.type = task['type']
 						elif self._parse_by_scheme([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
-							del self.commands[-1]
+							del commands[-1]
 
 					# try parsing schemes to retrieve the data
 					if not cmd.file:
@@ -168,8 +181,10 @@ class RevitJournal:
 				li += 1
 
 			# we don't need commands with empty object
-			if self.commands and self.commands[-1].type == 'exit':
-				del self.commands[-1]
+			if commands and commands[-1].type == 'exit':
+				del commands[-1]
+
+		return commands
 
 
 	@staticmethod
