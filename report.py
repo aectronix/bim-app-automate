@@ -17,11 +17,14 @@ cmd = argparse.ArgumentParser()
 cmd.add_argument('-d', '--dest', required=True, help='Destination')
 arg = cmd.parse_args()
 
+
 def runCollector():
 
 	db = DB()
 	cde = CDE(arg.dest)
+
 	journals = list()
+	commands = list()
 
 	cc = 0
 
@@ -41,23 +44,19 @@ def runCollector():
 			if j.build and j.user:
 				journals.append((j.id, j.name, j.mtime, j.build, j.user, j.path))
 
-				commands = j.getCommandData()
-				for c in commands:
-					if j and c:
-
-						com = db.cursor.execute('SELECT * FROM commands WHERE jid = ? AND idx = ? AND type = ? AND name = ? AND dt = ?', (j.id, c.idx, c.type, c.name, c.dt)).fetchone()
-						if not com:
-							# db.addCommandItem(str(uuid.uuid4()), j.id, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status, c.build, c.user)
-							print(json.dumps({'id': j.id, 'journal': j.name, 'build': j.build, 'user': j.user, 'commands': { 'idx': c.idx, 'type': c.type, 'command': c.name, 'date': c.dt, 'file': c.file, 'size': c.size, 'status': c.status}}, ensure_ascii=False, indent = 4))
-							cc += 1
+				# only new
+				for c in j.getCommandData():
+					if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
+						commands.append((str(uuid.uuid4()), j.id, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status))
+						cc += 1
 
 
+	# sync with db
 	if journals: db.upsJournalItems(journals)
-
+	if commands: db.addCommandItems(commands)
 
 	print(cc)
 
 
 runCollector()
-
 print("%s sec" % (time.time() - start_time))

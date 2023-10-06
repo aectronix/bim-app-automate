@@ -43,10 +43,10 @@ class DB (System):
 			)
 
 
-	def upsJournalItem(self, uuid: str, name: str, mtime: int, build: str, user: str, path: str):
+	# def upsJournalItem(self, uuid: str, name: str, mtime: int, build: str, user: str, path: str):
 
-		self.cursor.execute("INSERT INTO journals (id, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime", (uuid, name, mtime, build, user, path))
-		self.connection.commit()
+	# 	self.cursor.execute("INSERT INTO journals (id, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime", (uuid, name, mtime, build, user, path))
+	# 	self.connection.commit()
 
 
 	def upsJournalItems(self, data):
@@ -55,9 +55,20 @@ class DB (System):
 		self.connection.commit()
 
 
-	def addCommandItem(self, id: str, jid: str, idx: int, type: str, name: str, dt: str, file: str, size: int, status: str):
+	# def addCommandItem(self, id: str, jid: str, idx: int, type: str, name: str, dt: str, file: str, size: int, status: str):
 
-		self.cursor.execute("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, jid, idx, type, name, dt, file, size, status))
+	# 	self.cursor.execute("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, jid, idx, type, name, dt, file, size, status))
+	# 	self.connection.commit()
+
+	def getCommandItem(self, jid, idx, type, name, dt):
+
+		query = self.cursor.execute('SELECT * FROM commands WHERE jid = ? AND idx = ? AND type = ? AND name = ? AND dt = ?', (jid, idx, type, name, dt))
+		result = query.fetchone()
+
+		return result
+
+
+	def addCommandItems(self, data):
+
+		self.cursor.executemany("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
 		self.connection.commit()
-
-		# 1692968903

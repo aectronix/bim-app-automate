@@ -141,7 +141,7 @@ class RevitJournal:
 						if commands and isinstance(commands[-1], RevitCommand) and not commands[-1].file:
 							del commands[-1]
 						date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-						commands.append(RevitCommand(self.id, li+1, next(iter(ac)), appcom.group(1), date.group(0), self.build, self.user))
+						commands.append(RevitCommand(self.id, li+1, next(iter(ac)), appcom.group(1), date.group(0)))
 						break
 
 				# get the ast entry if exists
@@ -173,10 +173,7 @@ class RevitJournal:
 					if not cmd.status:
 						status = self._parse_by_scheme([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 						for d in status:
-							if not getattr(cmd, d): setattr(cmd, d, status[d])
-
-					if not cmd.build: cmd.build = self.build 
-					if not cmd.user: cmd.user = self.user		
+							if not getattr(cmd, d): setattr(cmd, d, status[d])	
 
 				li += 1
 
@@ -214,7 +211,7 @@ class RevitJournal:
 
 class RevitCommand:
 
-	def __init__(self, jid: str, idx: int, type, name, dt, build, user: str):
+	def __init__(self, jid, idx, type, name, dt):
 
 		self.id = str(uuid.uuid4())
 		self.jid = jid
@@ -226,5 +223,3 @@ class RevitCommand:
 		self.filepath = None
 		self.size = None
 		self.status = None
-		self.build = None
-		self.user = None
