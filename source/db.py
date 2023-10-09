@@ -34,31 +34,36 @@ class DB (System):
 		except sqlite3.Error as e:
 			print(f'SQLite error: {e}')
 			self.connection.execute(
+				'CREATE TABLE IF NOT EXISTS jobs \
+				(id integer primary key, ts integer)'
+			)			
+			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
-				(id text primary key, name text, mtime integer, build text, user text, path text)'
+				(id text primary key, jbid integer, name text, mtime integer, build text, user text, path text)'
 			)
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS commands \
-				(id text primary key, jid text, idx int, type text, name text, dt date, file text, size int, status text)'
+				(id text primary key, jid text, jbid integer, idx integer, type text, name text, dt date, file text, size integer, status text)'
 			)
 
 
-	# def upsJournalItem(self, uuid: str, name: str, mtime: int, build: str, user: str, path: str):
+	def addJobItem(self, id, ts):
 
-	# 	self.cursor.execute("INSERT INTO journals (id, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime", (uuid, name, mtime, build, user, path))
-	# 	self.connection.commit()
+		self.cursor.execute("INSERT INTO jobs (id, ts) VALUES (?, ?)", (id, ts))
+		self.connection.commit()
 
 
 	def upsJournalItems(self, data):
 
-		self.cursor.executemany("INSERT INTO journals (id, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime", data)
+		self.cursor.executemany("INSERT INTO journals (id, jbid, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime, jbid = excluded.jbid", data)
 		self.connection.commit()
 
 
-	# def addCommandItem(self, id: str, jid: str, idx: int, type: str, name: str, dt: str, file: str, size: int, status: str):
+	def addCommandItems(self, data):
 
-	# 	self.cursor.execute("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (id, jid, idx, type, name, dt, file, size, status))
-	# 	self.connection.commit()
+		self.cursor.executemany("INSERT INTO commands (id, jid, jbid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
+		self.connection.commit()
+
 
 	def getCommandItem(self, jid, idx, type, name, dt):
 
@@ -66,9 +71,3 @@ class DB (System):
 		result = query.fetchone()
 
 		return result
-
-
-	def addCommandItems(self, data):
-
-		self.cursor.executemany("INSERT INTO commands (id, jid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
-		self.connection.commit()

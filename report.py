@@ -26,6 +26,11 @@ def runCollector():
 	journals = list()
 	commands = list()
 
+	# log started job
+	job = db.cursor.execute("SELECT * FROM jobs WHERE id = (SELECT MAX(id) FROM jobs)").fetchone()
+	jobId = job[0]+1 if job else 0
+	db.addJobItem(jobId, math.floor(time.time()))
+
 	cc = 0
 
 	# retrieve journals, sync new or modified with database
@@ -37,17 +42,16 @@ def runCollector():
 
 		# only new and modified
 		if not row: jid = str(uuid.uuid4())
-		elif row[2] < mtime: jid = row[0]
+		elif row[3] < mtime: jid = row[0]
 
 		if jid:
 			j = RevitJournal(jid, jpath)
 			if j.build and j.user:
-				journals.append((j.id, j.name, j.mtime, j.build, j.user, j.path))
-
-				# only new
+				journals.append((j.id, jobId, j.name, j.mtime, j.build, j.user, j.path))
 				for c in j.getCommandData():
+					# only new
 					if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
-						commands.append((str(uuid.uuid4()), j.id, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status))
+						commands.append((str(uuid.uuid4()), j.id, jobId, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status))
 						cc += 1
 
 
