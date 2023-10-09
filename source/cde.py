@@ -4,15 +4,6 @@ import re
 from .journal import RevitJournal
 from .system import System
 
-config = {
-	'usr_dir': '\\C$\\Users',
-	'rvt_dir': '\\AppData\\Local\\Autodesk\\Revit',
-	'jrn_dir': 'Journals',
-	'filters': {
-		'user': ['All Users', 'archadm', 'Default', 'Default User', 'Public', 'Администратор', 'Все пользователи']
-	}
-}
-
 class CDE (System):
 
 	def __init__(self, host: str):
@@ -25,8 +16,8 @@ class CDE (System):
 
 	def getUserDirs(self):
 
-		usr_dir = self.host + config['usr_dir']
-		user_dirs = [os.path.join(usr_dir, d) for d in os.listdir(usr_dir) if not d in config['filters']['user']]
+		usr_dir = self.host + self.config['cde']['usr_dir']
+		user_dirs = [os.path.join(usr_dir, d) for d in os.listdir(usr_dir) if not d in self.config['cde']['filters']['users']]
 		user_dirs = [d for d in user_dirs if os.path.isdir(d)]
 
 		self.user_dirs = user_dirs
@@ -36,13 +27,13 @@ class CDE (System):
 
 		paths = list()
 		for ud in self.user_dirs:
-			path = ud + config['rvt_dir']
+			path = ud + self.config['cde']['rvt_dir']
 
 			if os.path.isdir(path):
 				version = [os.path.join(path, directory) for directory in os.listdir(path) if 'Autodesk Revit 20' in directory]
 
 				for v in version:
-					vpath = os.path.join(v, config['jrn_dir'])
+					vpath = os.path.join(v, self.config['cde']['jrn_dir'])
 					if os.path.isdir(vpath):
 						paths += [os.path.join(vpath, j) for j in os.listdir(vpath) if re.match(r'.*\.txt$', j)]
 

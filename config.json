@@ -1,0 +1,19 @@
+{
+    "encoding": "cp1251",
+    "cde": {
+        "usr_dir": "\\C$\\Users",
+        "rvt_dir": "\\AppData\\Local\\Autodesk\\Revit",
+        "jrn_dir": "Journals",
+        "filters": {
+            "users": [
+                "All Users",
+                "archadm",
+                "Default",
+                "Default User",
+                "Public",
+                "Администратор",
+                "Все пользователи"
+            ]
+        }
+    }
+}
