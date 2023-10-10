@@ -7,7 +7,6 @@ class DB (System):
 
 	def __init__(self):
 
-		self.path = os.path.dirname(__file__).split('source')[0] + 'journals.db'
 		self.connection = None
 		self.cursor = None
 
@@ -17,7 +16,7 @@ class DB (System):
 	def connect(self):
 
 		try:
-			self.connection = sqlite3.connect(self.path)
+			self.connection = sqlite3.connect(self.config['db']['path'])
 			self.cursor = self.connection.cursor()
 
 		except sqlite3.Error as e:

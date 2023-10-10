@@ -15,5 +15,41 @@
                 "Все пользователи"
             ]
         }
+    },
+    "db": {
+        "path": "C:\\Users\\i.yurasov\\Desktop\\dev\\bim-app-automate\\journals.db"
+    },
+    "journal": {
+        "patterns": {
+            "commands": [
+                { "open": "Jrn\\.RibbonEvent.*(ModelBrowserOpenDocumentEvent:open)" },
+                { "open": "Jrn\\.Command.*,\\s(ID_REVIT_FILE_OPEN|ID_APPMENU_PROJECT_OPEN|ID_FAMILY_OPEN|ID_IMPORT_IFC)\"" },
+                { "save": "Jrn\\.Command.*,\\s(ID_REVIT_FILE_SAVE|ID_REVIT_FILE_SAVE_AS|ID_REVIT_SAVE_AS_TEMPLATE|ID_SAVE_FAMILY|ID_REVIT_SAVE_AS_FAMILY)\"" },
+                { "sync": "Jrn\\.Command.*,\\s(ID_FILE_SAVE_TO_CENTRAL|ID_FILE_SAVE_TO_MASTER_SHORTCUT|ID_COLLABORATE)\"" },
+                { "exit": "Jrn\\.Command.*,\\s(ID_REVIT_FILE_CLOSE|ID_APP_EXIT)\"" }
+            ],
+            "contents": {
+                "build": "\\s*Build:\\s*(\\S+)",
+                "user": "\"Username\".*\"(.*?)\"",
+                "uuid": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                "file": "[\\\\/](?=[^\\\\/]*$)(.+)$",
+                "detect": { "key": "Detect if missing elements for (.*?): File Size: (-?\\d+), Element Count: \\d+", "items": ["file", "size"] },
+                "idok": { "key": "\"IDOK\"\\s*,\\s*\"([^\"]*)\"", "items": ["file"] },
+                "fsizecomp": { "key": "FileSizeComparison.*\\)\".*\\b(\\d+)\\b", "items": ["size"] },
+                "skybase": { "key": "skybase_model_size_bytes:.*\\b(\\d+)\\b", "items": ["size"] },
+                "finfo": { "key": "\\[Jrn\\.BasicFileInfo\\].*Rvt\\.Attr\\.Worksharing: (.*?) Rvt\\.Attr\\.Username:.*Rvt\\.Attr\\.CentralModelPath: (.*?) Rvt.Attr.RevitBuildVersion:.*Rvt\\.Attr\\.LastSavePath:(.*?) Rvt\\.Attr\\.LTProject:", "items": ["status", "file", "file"] },
+                "fsizeopen": { "key": "fileSizeOnOpen:(\\d+)KB", "items": ["size"] },
+                "saveas": { "key": "SLOG .* >(\\w+)  \"(.*?)\"", "items": ["status", "file"] },
+                "modelsave": { "key": "Jrn\\.ModelOperation.*Rvt\\.Attr\\.Scenario.*ModelSave.*Rvt\\.Attr\\.Worksharing: (.*?) Rvt\\.Attr\\.ModelState:", "items": ["status"] },
+                "tsync": { "key": "You have made changes to model.*\"1001\"", "items": ["type"], "match": "sync" },
+                "tsave": { "key": "You have made changes to model.*\"1002\"", "items": ["type"], "match": "save" },
+                "saveyes": { "key": "Do you want to save.*\"IDYES\"", "items": ["type"], "match": "save" },
+                "savenot": { "key": "Do you want to save.*\"IDNO\"", "items": ["type"], "match": "save" },
+                "idcancel": { "key": "IDCANCEL", "items": ["stop"], "match": true },
+                "btcancel": { "key": "AddInJournaling.*WpfButton\\(0,CancelButton\\)\\.Click", "items": ["stop"], "match": true },
+                "error": { "key": "HttpRequestStatusException.*Unknown response.*GetModelResponse.*", "items": ["stop"], "match": true },
+                "error403": { "key": "HttpRequestFailedException.*403.*Forbidden.*", "items": ["stop"], "match": true }
+            }
+        }
     }
 }
