@@ -18,7 +18,6 @@ class RevitJournal (System):
 
 		self.getBasicData()
 
-
 	def getBasicData(self):
 
 		schemes = self.config['journal']['patterns']['contents']
@@ -31,7 +30,11 @@ class RevitJournal (System):
 			for l in lines[0:d-1]:
 
 				build = re.search(r'' + schemes['build'], l)
-				if build: self.build = build.group(1)
+				if build:
+					if build.group(1) in self.config['journal']['versions']:
+						self.build = self.config['journal']['versions'][build.group(1)]
+					else:
+						self.build = build.group(1)
 
 				user = re.search(r'' + schemes['user'], re.sub(r'\s+', ' ', l + lines[li+1]))
 				if user: self.user = user.group(1)
@@ -68,29 +71,29 @@ class RevitJournal (System):
 					cmd = commands[-1]
 
 					# cancellation & errors
-					if (self._parse_by_scheme([schemes['idcancel']], l) and not cmd.file) or self._parse_by_scheme([schemes['btcancel'], schemes['error'], schemes['error403']], l):
+					if (self.parse_by_pattern([schemes['idcancel']], l) and not cmd.file) or self.parse_by_pattern([schemes['btcancel'], schemes['error'], schemes['error403']], l):
 						del commands[-1]
 
 					# transform exit commands into the final ones
 					if cmd.type == 'exit':
-						task = self._parse_by_scheme([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
+						task = self.parse_by_pattern([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
 						if task: cmd.type = task['type']
-						elif self._parse_by_scheme([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
+						elif self.parse_by_pattern([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
 							del commands[-1]
 
 					# try parsing schemes to retrieve the data
 					if not cmd.file:
-						fname = self._parse_by_scheme([schemes['idok'], schemes['detect'], schemes['finfo']], l)
+						fname = self.parse_by_pattern([schemes['idok'], schemes['detect'], schemes['finfo']], l)
 						for d in fname:
 							if not getattr(cmd, d): setattr(cmd, d, fname[d])
 
 					if not cmd.size:
-						size = self._parse_by_scheme([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
+						size = self.parse_by_pattern([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
 						for d in size:
 							if not getattr(cmd, d): setattr(cmd, d, size[d])
 
 					if not cmd.status:
-						status = self._parse_by_scheme([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
+						status = self.parse_by_pattern([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 						for d in status:
 							if not getattr(cmd, d): setattr(cmd, d, status[d])	
 
@@ -103,7 +106,7 @@ class RevitJournal (System):
 		return commands
 
 
-	def _parse_by_scheme(self, schemlist, line):
+	def parse_by_pattern(self, schemlist, line):
 
 		schemes = self.config['journal']['patterns']['contents']
 		result = {}
