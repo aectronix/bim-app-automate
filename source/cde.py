@@ -16,7 +16,7 @@ class CDE (System):
 
 	def getUserDirs(self):
 
-		usr_dir = self.host + self.config['cde']['usr_dir']
+		usr_dir = '\\\\' + self.host + self.config['cde']['usr_dir']
 		user_dirs = [os.path.join(usr_dir, d) for d in os.listdir(usr_dir) if not d in self.config['cde']['filters']['users']]
 		user_dirs = [d for d in user_dirs if os.path.isdir(d)]
 

@@ -14,14 +14,15 @@ from source.journal import RevitJournal
 start_time = time.time()
 
 cmd = argparse.ArgumentParser()
-cmd.add_argument('-d', '--dest', required=True, help='Destination')
+cmd.add_argument('-s', '--start', required=True, help='Start Host')
+cmd.add_argument('-e', '--end', required=False, help='End Host')
 arg = cmd.parse_args()
 
 
 def runCollector():
 
 	db = DB()
-	cde = CDE(arg.dest)
+	cde = CDE(arg.start)
 
 	journals = list()
 	commands = list()
