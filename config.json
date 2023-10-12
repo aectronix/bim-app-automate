@@ -6,14 +6,27 @@
         "jrn_dir": "Journals",
         "filters": {
             "users": [
+                ".", "..",
+                "adm",
                 "All Users",
                 "archadm",
                 "Default",
                 "Default User",
                 "Public",
+                "temp",
                 "Администратор",
                 "Все пользователи"
             ]
+        },
+        "network": {
+            "pysmb": {
+                "port": 445,
+                "timeout": 15,
+                "test": "10.8.88.2"
+            },
+            "nodes": {
+                "n1": ["10.8.88.206", "10.8.88.207"]
+            }
         }
     },
     "db": {

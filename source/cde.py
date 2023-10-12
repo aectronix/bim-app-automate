@@ -1,54 +1,91 @@
 import os
 import re
+import tempfile
+
+from smb.SMBConnection import SMBConnection
 
 from .journal import RevitJournal
 from .system import System
 
 class CDE (System):
 
-	def __init__(self, host: str):
+	def __init__(self, user, password):
 
-		self.host = host
-		self.user_dirs = None
+		self.user = user
+		self.pwd = password
+		self.host = '10.8.88.206'
+		self.auth = False
 
-		self.getUserDirs()
+		self.connection = None
 
-
-	def getUserDirs(self):
-
-		usr_dir = '\\\\' + self.host + self.config['cde']['usr_dir']
-		user_dirs = [os.path.join(usr_dir, d) for d in os.listdir(usr_dir) if not d in self.config['cde']['filters']['users']]
-		user_dirs = [d for d in user_dirs if os.path.isdir(d)]
-
-		self.user_dirs = user_dirs
+		self._authorize()
 
 
-	def getJournals(self):
+	def _authorize(self):
 
-		paths = list()
-		for ud in self.user_dirs:
-			path = ud + self.config['cde']['rvt_dir']
-
-			if os.path.isdir(path):
-				version = [os.path.join(path, directory) for directory in os.listdir(path) if 'Autodesk Revit 20' in directory]
-
-				for v in version:
-					vpath = os.path.join(v, self.config['cde']['jrn_dir'])
-					if os.path.isdir(vpath):
-						paths += [os.path.join(vpath, j) for j in os.listdir(vpath) if re.match(r'.*\.txt$', j)]
-
-					else: print('No journal folder found')
-
-			else: print('No Revit folder found')
-
-		if not paths: print('No journals found or there are any new journals')
-
-		return paths
+		connection = SMBConnection(self.user, self.pwd, '', '', use_ntlm_v2=True, is_direct_tcp=True)		
+		if connection.connect(self.config['cde']['network']['pysmb']['test'], 445, timeout=60):
+			self.auth = True
+		connection.close()
 
 
-	def getJournalsData(self, journals: list):
+	def getHosts(self):
 
-		data = [RevitJournal(j['id'], j['path']) for j in journals]
+		hosts = list()
+		net = self.config['cde']['network']['nodes']
+
+		if not self.host:
+			hosts = [self.host,]
+		else:
+			for n in net:
+				# get ranges and mask
+				ip = net[n][0].split('.')
+				start = net[n][0].split('.')[3]
+				end = net[n][1].split('.')[3]
+				for i in range(int(start), int(end)+1):
+					hosts.append('.'.join(ip[:3]) + '.' + str(i))
+		
+		return hosts
+
+
+	def getJournals(self, host):
+
+		journals = list()
+
+		try:
+			self.connection = SMBConnection(self.user, self.pwd, '', host, use_ntlm_v2=True, is_direct_tcp=True)
+			self.connection.connect(host, 445, timeout=15)
+
+		except Exception as e:
+				print(f"Error: {str(e)}")
+
+		if self.connection:
+			upath = '\\Users\\'
+			usr_dir = self.connection.listPath('C$', upath)
+			for u in usr_dir:
+				if u.isDirectory and not u.filename in self.config['cde']['filters']['users']:
+					rpath = upath + u.filename + '\\AppData\\Local\\Autodesk\\Revit\\'
+					rvt_dir = self.connection.listPath('C$', rpath)
+					for r in rvt_dir:
+						if 'Autodesk Revit 20' in r.filename:
+							jpath = rpath + r.filename + '\\Journals\\'
+							jrn_dir = self.connection.listPath('C$', jpath)
+							for j in jrn_dir:
+								if re.match(r'journal.*\.txt$', j.filename):
+									# print(j.filename + ', ' + jpath)
+									journals.append(jpath + j.filename)
+
+		return journals
+
+
+	def getJournalData(self, path):
+
+		with tempfile.NamedTemporaryFile() as file:
+			self.connection.retrieveFile('C$', path, file)
+			file.seek(0)
+			data = file.read().decode('latin-1')
+
+		file.close()
 
 		return data
 

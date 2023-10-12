@@ -38,11 +38,11 @@ class DB (System):
 			)			
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
-				(id text primary key, jbid integer, name text, mtime integer, build text, user text, path text)'
+				(id text primary key, job integer, name text, mtime integer, build text, user text, path text)'
 			)
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS commands \
-				(id text primary key, jid text, jbid integer, idx integer, type text, name text, dt date, file text, size integer, status text)'
+				(id text primary key, jid text, job integer, idx integer, type text, name text, dt date, file text, size integer, status text)'
 			)
 
 
@@ -54,13 +54,13 @@ class DB (System):
 
 	def upsJournalItems(self, data):
 
-		self.cursor.executemany("INSERT INTO journals (id, jbid, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime, jbid = excluded.jbid", data)
+		self.cursor.executemany("INSERT INTO journals (id, job, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime, job = excluded.job", data)
 		self.connection.commit()
 
 
 	def addCommandItems(self, data):
 
-		self.cursor.executemany("INSERT INTO commands (id, jid, jbid, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
+		self.cursor.executemany("INSERT INTO commands (id, jid, job, idx, type, name, dt, file, size, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", data)
 		self.connection.commit()
 
 
