@@ -15,17 +15,27 @@ class CDE (System):
 		self.pwd = password
 		self.host = '10.8.88.206'
 		self.auth = False
-
 		self.connection = None
+
+		self.logger = self.getLogger('CDE')
 
 		self._authorize()
 
 
 	def _authorize(self):
 
-		connection = SMBConnection(self.user, self.pwd, '', '', use_ntlm_v2=True, is_direct_tcp=True)		
-		if connection.connect(self.config['cde']['network']['pysmb']['test'], 445, timeout=60):
-			self.auth = True
+		self.logger.debug('Authorize in CDE network...')
+		try:
+			connection = SMBConnection(self.user, self.pwd, '', self.config['cde']['network']['pysmb']['test'], use_ntlm_v2=True, is_direct_tcp=True)		
+			if connection.connect(self.config['cde']['network']['pysmb']['test'], 445, timeout=60):
+				data = connection.listPath('public', '\\')
+				if data:
+					self.auth = True
+					self.logger.info('Authorization succeful, connection established')
+
+		except Exception as e:
+			self.logger.error(f'{e}, authorization failed')
+
 		connection.close()
 
 

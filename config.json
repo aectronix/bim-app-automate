@@ -30,7 +30,7 @@
         }
     },
     "db": {
-        "path": "C:\\Users\\i.yurasov\\Desktop\\dev\\bim-app-automate\\journals.db"
+        "path": "C:\\Users\\i.yurasov\\Desktop\\dev\\bim-app-automate\\"
     },
     "journal": {
         "patterns": {

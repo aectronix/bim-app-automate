@@ -8,6 +8,7 @@ import uuid
 from source.cde import CDE
 from source.db import DB
 from source.journal import RevitJournal
+from source.system import System
 
 start_time = time.time()
 
@@ -19,6 +20,9 @@ arg = cmd.parse_args()
 
 def runCollector():
 
+	sys = System()
+	sys.logger.debug('Starting scanner app...')
+
 	db = DB()
 	cde = CDE(arg.user, arg.pwd)
 
@@ -29,6 +33,8 @@ def runCollector():
 	job = db.cursor.execute("SELECT * FROM jobs WHERE id = (SELECT MAX(id) FROM jobs)").fetchone()
 	jobId = job[0]+1 if job else 0
 	db.addJobItem(jobId, math.floor(time.time()))
+
+	cde.logger.debug('Job ' + sys.config['colors']['y'] + '#' + str(jobId) + sys.config['colors']['x'] + ' started')
 
 	hn = jn = cn = 0
 
@@ -67,7 +73,7 @@ def runCollector():
 	if journals: db.upsJournalItems(journals)
 	if commands: db.addCommandItems(commands)
 
-	print('journals: ' + str(jn) + '/' + str(len(journals)) + ', commands: ' + str(cn) + '/' + str(len(commands)))
+	# print('journals: ' + str(jn) + '/' + str(len(journals)) + ', commands: ' + str(cn) + '/' + str(len(commands)))
 
 
 runCollector()
