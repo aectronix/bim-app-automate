@@ -10,7 +10,8 @@ class DB (System):
 		self.name = 'journals.db'
 		self.connection = None
 		self.cursor = None
-		self.logger = self.getLogger('DB')
+		self.logger = System().get_logger()
+		self.config = System().get_config()
 
 		self.connect()
 		self.tables()

@@ -2,41 +2,26 @@ import colorama
 import json
 import logging
 import os
+import time
 
 class System:
 	_instances = {}
+	_logger = None
+	_config = None
 
 	def __new__(cls, *args, **kwargs):
 		if cls not in cls._instances:
 			cls._instances[cls] = super(System, cls).__new__(cls)
-			cls._instances[cls].config = cls._instances[cls].getConfig()
-			cls._instances[cls].logger = cls._instances[cls].getLogger('SYS')
 		return cls._instances[cls]
 
 
-	def getConfig(self):
-
-		with open(os.path.dirname(__file__).split('source')[0] + 'config.json', 'r') as file:
-			config = json.load(file)
-
-		return config
-
-
-	def getLogger(self, name):
-
-		self.config['colors'] = {
-			'c': colorama.Fore.CYAN,
-			'g': colorama.Fore.GREEN,
-			'm': colorama.Fore.MAGENTA,
-			'r': colorama.Fore.RED,
-			'y': colorama.Fore.YELLOW,
-			'x': colorama.Style.RESET_ALL,
-		}
+	@classmethod
+	def _set_logger(cls):
 
 		class LogFormatter(logging.Formatter):
 
 		    level = {
-		        'DEBUG': self.config['colors']['c'],
+		        'DEBUG': colorama.Fore.CYAN,
 		        'INFO': colorama.Fore.GREEN,
 		        'WARNING': colorama.Fore.YELLOW,
 		        'ERROR': colorama.Fore.RED,
@@ -47,19 +32,53 @@ class System:
 		        levelname = record.levelname
 		        levelname_color = self.level.get(levelname, colorama.Fore.RESET)
 		        record.levelname = f'{levelname_color}{levelname}{colorama.Fore.RESET}'
+
+		        ms_str = str(int(record.msecs))
+		        if len(ms_str) == 1: ms_str = '00' + ms_str
+		        elif len(ms_str) == 2: ms_str = '0' + ms_str
+		        record.msecs = ms_str
+
 		        return super(LogFormatter, self).format(record)
 
-		c = colorama
-		c.init(autoreset=True)
+		colorama.init(autoreset=True)
 
-		logger = logging.getLogger(name)
+		logger = logging.getLogger('SYS')
 		logger.setLevel(logging.DEBUG)
 
 		handler = logging.StreamHandler()
-		formatter = LogFormatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
+		formatter = LogFormatter('%(asctime)s.%(msecs)s [%(levelname)s] %(name)s: %(message)s', datefmt='%H:%M:%S')
 
 		handler.setFormatter(formatter)
 		logger.addHandler(handler)
 
 		return logger
 
+
+	@classmethod
+	def _set_config(cls):
+
+		with open(os.path.dirname(__file__).split('source')[0] + 'config.json', 'r') as file:
+			config = json.load(file)
+
+		config['colors'] = {
+			'c': colorama.Fore.CYAN,
+			'g': colorama.Fore.GREEN,
+			'm': colorama.Fore.MAGENTA,
+			'r': colorama.Fore.RED,
+			'y': colorama.Fore.YELLOW,
+			'x': colorama.Style.RESET_ALL,
+		}
+
+		return config
+
+
+	def get_logger(cls):
+		if cls._logger is None:
+			cls._logger = cls._set_logger()
+		return cls._logger
+
+
+	def get_config(cls):
+		if cls._config is None:
+			cls._config = cls._set_config()
+		return cls._config
