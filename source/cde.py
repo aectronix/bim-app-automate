@@ -4,7 +4,6 @@ import tempfile
 
 from smb.SMBConnection import SMBConnection
 
-from .journal import RevitJournal
 from .system import System
 
 class CDE (System):
@@ -98,7 +97,7 @@ class CDE (System):
 		return journals
 
 
-	def getJournalData(self, path):
+	def getFileText(self, path):
 
 		with tempfile.NamedTemporaryFile() as file:
 			self.connection.retrieveFile('C$', path, file)

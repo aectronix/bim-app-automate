@@ -7,7 +7,8 @@ import uuid
 
 from source.cde import CDE
 from source.db import DB
-from source.journal import RevitJournal
+from source.revit import Revit
+from source.revit import RevitJournal
 from source.system import System
 
 start_time = time.time()
@@ -26,6 +27,7 @@ def runCollector():
 
 	db = DB()
 	cde = CDE(arg.user, arg.pwd)
+	rvt = Revit()
 
 	journals = list()
 	commands = list()
@@ -58,13 +60,13 @@ def runCollector():
 				elif row[3] < math.floor(attr.last_write_time): jid = row[0]
 
 				if jid:
-					data = cde.getJournalData(journal)
-					j = RevitJournal(jid, attr.filename, math.floor(attr.last_write_time), jpath)
-					j.getBasicData(data)
-					if j.build and j.user:
+					text = cde.getFileText(journal)
+					data = rvt.getJournalData(text)
+					if data:
+						j = RevitJournal(jid, attr.filename, math.floor(attr.last_write_time), jpath, data['build'], data['user'])
 						cde.logger.info('Valid content found, parsing started...')
 						journals.append((j.id, jobId, j.name, j.mtime, j.build, j.user, j.path)) # prep for db
-						for c in j.getCommandData(data):
+						for c in rvt.getCommandData(j, text):
 							cn += 1
 							# only new
 							if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
@@ -75,8 +77,8 @@ def runCollector():
 
 	# sync
 	cde.logger.debug('Sync entries with database...')
-	if journals: db.upsJournalItems(journals)
-	if commands: db.addCommandItems(commands)
+	# if journals: db.upsJournalItems(journals)
+	# if commands: db.addCommandItems(commands)
 
 	cde.logger.info('Processed journals: ' + cde.config['colors']['y'] + str(len(journals)) + cde.config['colors']['x'] + '/' + str(jn) + ', commands: ' + cde.config['colors']['y'] + str(len(commands)) + cde.config['colors']['x'] + '/' + str(cn))
 	cde.logger.debug(cde.config['colors']['y'] + str(round((time.time() - start_time), 3)) + 's')

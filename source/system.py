@@ -5,6 +5,7 @@ import os
 import time
 
 class System:
+
 	_instances = {}
 	_logger = None
 	_config = None
@@ -14,9 +15,25 @@ class System:
 			cls._instances[cls] = super(System, cls).__new__(cls)
 		return cls._instances[cls]
 
+	@classmethod
+	def _ini_config(cls):
+
+		with open(os.path.dirname(__file__).split('source')[0] + 'config.json', 'r') as file:
+			config = json.load(file)
+
+		config['colors'] = {
+			'c': colorama.Fore.CYAN,
+			'g': colorama.Fore.GREEN,
+			'm': colorama.Fore.MAGENTA,
+			'r': colorama.Fore.RED,
+			'y': colorama.Fore.YELLOW,
+			'x': colorama.Style.RESET_ALL,
+		}
+
+		return config
 
 	@classmethod
-	def _set_logger(cls):
+	def set_logger(cls):
 
 		class LogFormatter(logging.Formatter):
 
@@ -32,11 +49,7 @@ class System:
 		        levelname = record.levelname
 		        levelname_color = self.level.get(levelname, colorama.Fore.RESET)
 		        record.levelname = f'{levelname_color}{levelname}{colorama.Fore.RESET}'
-
-		        ms_str = str(int(record.msecs))
-		        if len(ms_str) == 1: ms_str = '00' + ms_str
-		        elif len(ms_str) == 2: ms_str = '0' + ms_str
-		        record.msecs = ms_str
+		        record.msecs = str(int(record.msecs)).zfill(3)
 
 		        return super(LogFormatter, self).format(record)
 
@@ -53,32 +66,14 @@ class System:
 
 		return logger
 
-
 	@classmethod
-	def _set_config(cls):
-
-		with open(os.path.dirname(__file__).split('source')[0] + 'config.json', 'r') as file:
-			config = json.load(file)
-
-		config['colors'] = {
-			'c': colorama.Fore.CYAN,
-			'g': colorama.Fore.GREEN,
-			'm': colorama.Fore.MAGENTA,
-			'r': colorama.Fore.RED,
-			'y': colorama.Fore.YELLOW,
-			'x': colorama.Style.RESET_ALL,
-		}
-
-		return config
-
-
 	def get_logger(cls):
 		if cls._logger is None:
-			cls._logger = cls._set_logger()
+			cls._logger = cls.set_logger()
 		return cls._logger
 
-
+	@classmethod
 	def get_config(cls):
 		if cls._config is None:
-			cls._config = cls._set_config()
+			cls._config = cls._ini_config()
 		return cls._config

@@ -5,22 +5,18 @@ import uuid
 
 from .system import System
 
-class RevitJournal (System):
+class Revit (System):
 
-	def __init__(self, id, name, mtime, path):
+	def __init__(self):
 
-		self.id = id
-		self.name = name
-		self.mtime = mtime
-		self.path = path
-		self.build = None
-		self.user = None
-
+		config = System().get_config()
+		self.config = config
 		self.logger = System().get_logger()
-		self.config = System().get_config()
 
-	def getBasicData(self, data):
+	def getJournalData(self, data):
 
+		build = None
+		user = None
 		schemes = self.config['journal']['patterns']['contents']
 
 		li = 0
@@ -29,22 +25,23 @@ class RevitJournal (System):
 
 		for l in lines[0:d-1]:
 
-			build = re.search(r'' + schemes['build'], l)
-			if build:
-				if build.group(1) in self.config['journal']['versions']:
-					self.build = self.config['journal']['versions'][build.group(1)]
+			b = re.search(r'' + schemes['build'], l)
+			if b:
+				if b.group(1) in self.config['journal']['versions']:
+					build = self.config['journal']['versions'][b.group(1)]
 				else:
-					self.build = build.group(1)
+					build = b.group(1)
 
-			user = re.search(r'' + schemes['user'], re.sub(r'\s+', ' ', l + lines[li+1]))
-			if user: self.user = user.group(1)
-
-			if self.build and self.user: break
+			u = re.search(r'' + schemes['user'], re.sub(r'\s+', ' ', l + lines[li+1]))
+			if u: user = u.group(1)
 
 			li += 1
 
+			if build and user:
+				# break
+				return { 'build': build, 'user': user }
 
-	def getCommandData(self, data):
+	def getCommandData(self, journal, data):	
 
 		schemes = self.config['journal']['patterns']['contents']
 		commands = list()
@@ -63,7 +60,7 @@ class RevitJournal (System):
 						self.logger.warning('The last command is empty, destroying...')
 						del commands[-1]
 					date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
-					commands.append(RevitCommand(self.id, li+1, next(iter(ac)), appcom.group(1), date.group(0)))
+					commands.append(RevitCommand(journal.id, li+1, next(iter(ac)), appcom.group(1), date.group(0)))
 					break
 
 			# get the ast entry if exists
@@ -71,35 +68,35 @@ class RevitJournal (System):
 				cmd = commands[-1]
 
 				# cancellation & errors
-				if (self.parse_by_pattern([schemes['idcancel']], l) and not cmd.file) or self.parse_by_pattern([schemes['btcancel'], schemes['error'], schemes['error403']], l):
+				if (self.getParsedPattern([schemes['idcancel']], l) and not cmd.file) or self.getParsedPattern([schemes['btcancel'], schemes['error'], schemes['error403']], l):
 					self.logger.warning('The last command was cancelled or failed')
 					del commands[-1]
 
 				# transform exit commands into the final ones
 				if cmd.type == 'exit':
-					task = self.parse_by_pattern([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
+					task = self.getParsedPattern([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
 					if task:
 						cmd.type = task['type']
 						self.logger.debug('Exit command ends with the ' + self.config['colors']['y'] + cmd.type + self.config['colors']['x'] + ' type')
-					elif self.parse_by_pattern([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
+					elif self.getParsedPattern([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
 						del commands[-1]
 
 				# try parsing schemes to retrieve the data
 				if not cmd.file:
-					fname = self.parse_by_pattern([schemes['idok'], schemes['detect'], schemes['finfo']], l)
+					fname = self.getParsedPattern([schemes['idok'], schemes['detect'], schemes['finfo']], l)
 					if fname:
 						for d in fname:
 							self.logger.info('Retrieved "' + d + '": ' + self.config['colors']['y'] + fname[d])
 							if not getattr(cmd, d): setattr(cmd, d, fname[d])
 
 				if not cmd.size:
-					size = self.parse_by_pattern([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
+					size = self.getParsedPattern([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
 					for d in size:
 						self.logger.info('Retrieved "' + d + '": ' + self.config['colors']['y'] + size[d])
 						if not getattr(cmd, d): setattr(cmd, d, size[d])
 
 				if not cmd.status:
-					status = self.parse_by_pattern([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
+					status = self.getParsedPattern([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 					for d in status:
 						self.logger.info('Retrieved "' + d + '": ' + self.config['colors']['y'] + status[d])
 						if not getattr(cmd, d): setattr(cmd, d, status[d])	
@@ -113,8 +110,7 @@ class RevitJournal (System):
 
 		return commands
 
-
-	def parse_by_pattern(self, schemlist, line):
+	def getParsedPattern(self, schemlist, line):
 
 		schemes = self.config['journal']['patterns']['contents']
 		result = {}
@@ -139,6 +135,18 @@ class RevitJournal (System):
 					result[s['items'][0]] = s['match']
 				break
 		return result
+
+
+class RevitJournal:
+
+	def __init__(self, id, name, mtime, path, build=None, user=None):
+
+		self.id = id
+		self.name = name
+		self.mtime = mtime
+		self.path = path
+		self.build = build
+		self.user = user
 
 
 class RevitCommand:

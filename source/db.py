@@ -2,6 +2,7 @@ import sqlite3
 import os
 
 from .system import System
+from .revit import Revit
 
 class DB (System):
 
@@ -10,8 +11,8 @@ class DB (System):
 		self.name = 'journals.db'
 		self.connection = None
 		self.cursor = None
-		self.logger = System().get_logger()
 		self.config = System().get_config()
+		self.logger = System().get_logger()
 
 		self.connect()
 		self.tables()
