@@ -38,12 +38,12 @@ class Revit (System):
 			li += 1
 
 			if build and user:
-				# break
 				return { 'build': build, 'user': user }
 
 	def getCommandData(self, journal, data):	
 
 		schemes = self.config['journal']['patterns']['contents']
+		msg = self.config['logger']['messages']
 		commands = list()
 
 		li = 0
@@ -55,9 +55,9 @@ class Revit (System):
 			for ac in self.config['journal']['patterns']['commands']:
 				appcom = re.search(ac[next(iter(ac))], l)
 				if appcom:
-					self.logger.debug('Command ' + self.config['colors']['y'] + appcom.group(1) + self.config['colors']['x'] + ' found at ' + self.config['colors']['y'] + str(li+1) + self.config['colors']['x'] + ' line')
+					self.logger.debug(msg['jrn_command_found'].format(appcom.group(1), str(li+1)))
 					if commands and isinstance(commands[-1], RevitCommand) and not commands[-1].file:
-						self.logger.warning('The last command is empty, destroying...')
+						self.logger.warning(msg['jrn_command_empty'])
 						del commands[-1]
 					date = re.search(r'\d{2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2}', lines[li-1])
 					commands.append(RevitCommand(journal.id, li+1, next(iter(ac)), appcom.group(1), date.group(0)))
@@ -69,7 +69,7 @@ class Revit (System):
 
 				# cancellation & errors
 				if (self.getParsedPattern([schemes['idcancel']], l) and not cmd.file) or self.getParsedPattern([schemes['btcancel'], schemes['error'], schemes['error403']], l):
-					self.logger.warning('The last command was cancelled or failed')
+					self.logger.warning(msg['jrn_command_break'])
 					del commands[-1]
 
 				# transform exit commands into the final ones
@@ -77,7 +77,7 @@ class Revit (System):
 					task = self.getParsedPattern([schemes['tsync'], schemes['tsave'], schemes['saveyes']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2]))
 					if task:
 						cmd.type = task['type']
-						self.logger.debug('Exit command ends with the ' + self.config['colors']['y'] + cmd.type + self.config['colors']['x'] + ' type')
+						self.logger.debug(msg['jrn_command_exit'].format(cmd.type))
 					elif self.getParsedPattern([schemes['savenot']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
 						del commands[-1]
 
@@ -86,26 +86,26 @@ class Revit (System):
 					fname = self.getParsedPattern([schemes['idok'], schemes['detect'], schemes['finfo']], l)
 					if fname:
 						for d in fname:
-							self.logger.info('Retrieved "' + d + '": ' + self.config['colors']['y'] + fname[d])
+							self.logger.debug(msg['jrn_command_prop'].format(d, fname[d]))
 							if not getattr(cmd, d): setattr(cmd, d, fname[d])
 
 				if not cmd.size:
 					size = self.getParsedPattern([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
 					for d in size:
-						self.logger.info('Retrieved "' + d + '": ' + self.config['colors']['y'] + size[d])
+						self.logger.debug(msg['jrn_command_prop'].format(d, size[d]))
 						if not getattr(cmd, d): setattr(cmd, d, size[d])
 
 				if not cmd.status:
 					status = self.getParsedPattern([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
 					for d in status:
-						self.logger.info('Retrieved "' + d + '": ' + self.config['colors']['y'] + status[d])
+						self.logger.debug(msg['jrn_command_prop'].format(d, status[d]))
 						if not getattr(cmd, d): setattr(cmd, d, status[d])	
 
 			li += 1
 
 		# we don't need commands with empty object
 		if commands and commands[-1].type == 'exit':
-			self.logger.warning('The last command is empty, destroying...')
+			self.logger.warning(msg['jrn_command_empty'])
 			del commands[-1]
 
 		return commands

@@ -35,25 +35,32 @@ class System:
 	@classmethod
 	def set_logger(cls):
 
+		colors = cls.get_config()['colors']
+		colorama.init(autoreset=True)
+
 		class LogFormatter(logging.Formatter):
 
 		    level = {
-		        'DEBUG': colorama.Fore.CYAN,
-		        'INFO': colorama.Fore.GREEN,
-		        'WARNING': colorama.Fore.YELLOW,
-		        'ERROR': colorama.Fore.RED,
-		        'CRITICAL': colorama.Fore.MAGENTA,
+		        'DEBUG': colors['c'],
+		        'INFO': colors['g'],
+		        'WARNING': colors['y'],
+		        'ERROR': colors['r'],
+		        'CRITICAL': colors['m']
 		    }
 
 		    def format(self, record):
+
 		        levelname = record.levelname
 		        levelname_color = self.level.get(levelname, colorama.Fore.RESET)
 		        record.levelname = f'{levelname_color}{levelname}{colorama.Fore.RESET}'
 		        record.msecs = str(int(record.msecs)).zfill(3)
+	
+		        for k in colors:
+		        	if '$'+k in record.msg:
+		        		record.msg = record.msg.replace('$'+k, colors[k])
 
 		        return super(LogFormatter, self).format(record)
 
-		colorama.init(autoreset=True)
 
 		logger = logging.getLogger('SYS')
 		logger.setLevel(logging.DEBUG)

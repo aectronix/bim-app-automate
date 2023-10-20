@@ -11,19 +11,22 @@ class DB (System):
 		self.name = 'journals.db'
 		self.connection = None
 		self.cursor = None
-		self.config = System().get_config()
+
+		config = System().get_config()
+		self.config = config
 		self.logger = System().get_logger()
+		self.msg = self.config['logger']['messages']
 
 		self.connect()
 		self.tables()
 
 	def connect(self):
 
-		self.logger.debug('Open connection with ' + self.config['colors']['y'] + self.name + self.config['colors']['x'] + '...')
+		self.logger.debug(self.msg['db_connect'].format(self.name))
 		try:
 			self.connection = sqlite3.connect(self.config['db']['path'] + self.name)
 			self.cursor = self.connection.cursor()
-			self.logger.info('Connection successful')
+			self.logger.info(self.msg['db_connect_ok'])
 
 		except sqlite3.Error as e:
 			self.logger.error(f'{e}')
@@ -35,10 +38,10 @@ class DB (System):
 			# self.cursor.execute('SELECT * FROM jobs')
 			self.cursor.execute('SELECT * FROM journals')
 			# self.cursor.execute('SELECT * FROM commands')
-			self.logger.info('Tables found')
+			self.logger.info(self.msg['db_tables_ok'])
 
 		except sqlite3.Error as e:
-			self.logger.warning('No tables has been found, creating...')
+			self.logger.warning(self.msg['db_tables_none'])
 
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS jobs \
@@ -52,7 +55,7 @@ class DB (System):
 				'CREATE TABLE IF NOT EXISTS commands \
 				(id text primary key, jid text, job integer, idx integer, type text, name text, dt date, file text, size integer, status text)'
 			)
-			self.logger.info('Tables ' + self.config['colors']['y'] + 'jobs, journals, commands' + self.config['colors']['x'] + ' have been created')		
+			self.logger.info(self.msg['db_tables_made'].format('jobs, journals, commands'))	
 
 
 	def addJobItem(self, id, ts):

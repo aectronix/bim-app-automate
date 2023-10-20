@@ -1,5 +1,26 @@
 {
     "encoding": "cp1251",
+    "logger": {
+        "messages": {
+            "db_connect": "Open connection with $y{}$x...",
+            "db_connect_ok": "Connection successful",
+            "db_tables_ok": "Tables found",
+            "db_tables_none": "No tables has been found, creating...",
+            "db_tables_made": "Tables $y{}$x have been created",
+            "cde_auth": "Authorize in CDE network...",
+            "cde_auth_ok": "Authorization succeful, connection established",
+            "cde_net_nodes": "Retrieving network nodes...",
+            "cde_net_host": "Connecting to $y{}$x host...",
+            "cde_net_host_ok": "Connection succeful, trying to retrieve the files...",
+            "cde_net_host_fail": "$y{}$x has no response",
+            "cde_no_seek": "No {} has been found",
+            "jrn_command_found": "Command $y{}$x found at $y{}$x line",
+            "jrn_command_empty": "The last command is empty, destroying...",
+            "jrn_command_break": "The last command was cancelled or failed",
+            "jrn_command_exit": "Exit command ends with the $y{}$x type",
+            "jrn_command_prop": "Retrieved \"{}\": $y{}"
+        }
+    },
     "cde": {
         "usr_dir": "\\C$\\Users",
         "rvt_dir": "\\AppData\\Local\\Autodesk\\Revit",

@@ -16,22 +16,24 @@ class CDE (System):
 		self.auth = False
 		self.connection = None
 
+		config = System().get_config()
+		self.config = config
 		self.logger = System().get_logger()
-		self.config = System().get_config()
+		self.msg = self.config['logger']['messages']
 
 		self._authorize()
 
 
 	def _authorize(self):
 
-		self.logger.debug('Authorize in CDE network...')
+		self.logger.debug(self.msg['cde_auth'])
 		try:
 			connection = SMBConnection(self.user, self.pwd, '', self.config['cde']['network']['pysmb']['test'], use_ntlm_v2=True, is_direct_tcp=True)		
 			if connection.connect(self.config['cde']['network']['pysmb']['test'], 445, timeout=60):
 				data = connection.listPath('public', '\\')
 				if data:
 					self.auth = True
-					self.logger.info('Authorization succeful, connection established')
+					self.logger.info(self.msg['cde_auth_ok'])
 
 		except Exception as e:
 			self.logger.error(f'{e}, authorization failed')
@@ -62,15 +64,15 @@ class CDE (System):
 
 		journals = list()
 
-		self.logger.debug(f'Connecting to ' + self.config['colors']['y'] + host + self.config['colors']['x'] + ' host...')
+		self.logger.debug(self.msg['cde_net_host'].format(host))
 		try:
 			self.connection = SMBConnection(self.user, self.pwd, '', host, use_ntlm_v2=True, is_direct_tcp=True)
 			self.connection.connect(host, 445, timeout=15)
-			self.logger.info('Connection succeful, trying to retrieve the files...')
+			self.logger.info(self.msg['cde_net_host_ok'])
 
 		except Exception as e:
 			self.connection = None
-			self.logger.error(f'{e}, ' + self.config['colors']['y'] + host + self.config['colors']['x'] + ' has no response')
+			self.logger.error(f'{e}, ' + self.msg['cde_net_host_fail'].format(host))
 
 		if self.connection:
 			upath = '\\Users\\'
@@ -85,11 +87,10 @@ class CDE (System):
 							jrn_dir = self.connection.listPath('C$', jpath)
 							for j in jrn_dir:
 								if re.match(r'journal.*\.txt$', j.filename):
-									# print(j.filename + ', ' + jpath)
 									journals.append(jpath + j.filename)
 
 			if not journals:
-				self.logger.warning('No journals have been found')
+				self.logger.warning(self.msg['cde_no_seek'].format('journals'))
 
 				self.connection.close()
 				self.connection = None
