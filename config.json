@@ -18,7 +18,7 @@
             "jrn_command_empty": "The last command is empty, destroying...",
             "jrn_command_break": "The last command was cancelled or failed",
             "jrn_command_exit": "Exit command ends with the $y{}$x type",
-            "jrn_command_prop": "Retrieved \"{}\": $y{}"
+            "jrn_command_prop": "Retrieved \"{}\": $y{}$x at $y{}$x line"
         }
     },
     "cde": {
@@ -67,20 +67,24 @@
                 "user": "\"Username\".*\"(.*?)\"",
                 "uuid": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
                 "file": "[\\\\/](?=[^\\\\/]*$)(.+)$",
-                "detect": { "key": "Detect if missing elements for (.*?): File Size: (-?\\d+), Element Count: \\d+", "items": ["file", "size"] },
+                "elements": { "key": "Detect if missing elements for (.*?): File Size: (-?\\d+), Element Count: \\d+", "items": ["file", "size"] },
                 "idok": { "key": "\"IDOK\"\\s*,\\s*\"([^\"]*)\"", "items": ["file"] },
                 "fsizecomp": { "key": "FileSizeComparison.*\\)\".*\\b(\\d+)\\b", "items": ["size"] },
                 "skybase": { "key": "skybase_model_size_bytes:.*\\b(\\d+)\\b", "items": ["size"] },
-                "finfo": { "key": "\\[Jrn\\.BasicFileInfo\\].*Rvt\\.Attr\\.Worksharing: (.*?) Rvt\\.Attr\\.Username:.*Rvt\\.Attr\\.CentralModelPath: (.*?) Rvt.Attr.RevitBuildVersion:.*Rvt\\.Attr\\.LastSavePath:(.*?) Rvt\\.Attr\\.LTProject:", "items": ["status", "file", "file"] },
+                "finfo": { "key": "\\[Jrn\\.BasicFileInfo\\].*Rvt\\.Attr\\.Worksharing: (.*?) Rvt\\.Attr\\.User(?:name|Name):.*Rvt\\.Attr\\.CentralModelPath: (.*?) Rvt.Attr.RevitBuildVersion:.*Rvt\\.Attr\\.LastSavePath: (.*?) Rvt\\.Attr\\.", "items": ["status", "file", "file"] },
                 "fsizeopen": { "key": "fileSizeOnOpen:(\\d+)KB", "items": ["size"] },
                 "saveas": { "key": "SLOG .* >(\\w+)  \"(.*?)\"", "items": ["status", "file"] },
-                "modelsave": { "key": "Jrn\\.ModelOperation.*Rvt\\.Attr\\.Scenario.*ModelSave.*Rvt\\.Attr\\.Worksharing: (.*?) Rvt\\.Attr\\.ModelState:", "items": ["status"] },
+                "operation": { "key": "Jrn\\.ModelOperation.*Rvt\\.Attr\\.Scenario.*Model(?:Open|Save).*Rvt\\.Attr\\.Worksharing: (.*?) Rvt\\.Attr\\.ModelState:", "items": ["status"] },
+                "onsave": { "key": "\\[ISL\\] (On save), Adler Checksum:.*\\[(.*?)\\]", "items": ["status", "file"] },
+                "upload": { "key": "Operation.*ServerDataFileStream::(.*?):.*Path\\s=\\s\"(.*?)\"", "items": ["status", "file"] },
                 "tsync": { "key": "You have made changes to model.*\"1001\"", "items": ["type"], "match": "sync" },
                 "tsave": { "key": "You have made changes to model.*\"1002\"", "items": ["type"], "match": "save" },
                 "saveyes": { "key": "Do you want to save.*\"IDYES\"", "items": ["type"], "match": "save" },
                 "savenot": { "key": "Do you want to save.*\"IDNO\"", "items": ["type"], "match": "save" },
                 "idcancel": { "key": "IDCANCEL", "items": ["stop"], "match": true },
                 "btcancel": { "key": "AddInJournaling.*WpfButton\\(0,CancelButton\\)\\.Click", "items": ["stop"], "match": true },
+                "version": {"key": "was saved in a later version of Revit and cannot be retrieved in this version.*(Close).*(IDCLOSE)", "items": ["stop"], "match": true },
+                "detach": {"key": "Detaching this model will create an independent model.*(Cancel).*(IDCANCEL)", "items": ["stop"], "match": true },
                 "error": { "key": "HttpRequestStatusException.*Unknown response.*GetModelResponse.*", "items": ["stop"], "match": true },
                 "error403": { "key": "HttpRequestFailedException.*403.*Forbidden.*", "items": ["stop"], "match": true }
             }

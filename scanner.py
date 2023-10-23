@@ -77,8 +77,8 @@ def runCollector():
 
 	# sync
 	cde.logger.debug('Sync entries with database...')
-	# if journals: db.upsJournalItems(journals)
-	# if commands: db.addCommandItems(commands)
+	if journals: db.upsJournalItems(journals)
+	if commands: db.addCommandItems(commands)
 
 	cde.logger.info('Processed journals: ' + cde.config['colors']['y'] + str(len(journals)) + cde.config['colors']['x'] + '/' + str(jn) + ', commands: ' + cde.config['colors']['y'] + str(len(commands)) + cde.config['colors']['x'] + '/' + str(cn))
 	cde.logger.debug(cde.config['colors']['y'] + str(round((time.time() - start_time), 3)) + 's')

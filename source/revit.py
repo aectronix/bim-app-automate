@@ -68,7 +68,7 @@ class Revit (System):
 				cmd = commands[-1]
 
 				# cancellation & errors
-				if (self.getParsedPattern([schemes['idcancel']], l) and not cmd.file) or self.getParsedPattern([schemes['btcancel'], schemes['error'], schemes['error403']], l):
+				if (self.getParsedPattern([schemes['idcancel']], l) and not cmd.file) or self.getParsedPattern([schemes['btcancel'], schemes['error'], schemes['error403']], l) or self.getParsedPattern([schemes['version'], schemes['detach']], re.sub(r'\s+', ' ', l + lines[li+1] + lines[li+2])):
 					self.logger.warning(msg['jrn_command_break'])
 					del commands[-1]
 
@@ -83,28 +83,33 @@ class Revit (System):
 
 				# try parsing schemes to retrieve the data
 				if not cmd.file:
-					fname = self.getParsedPattern([schemes['idok'], schemes['detect'], schemes['finfo']], l)
+					fname = self.getParsedPattern([schemes['idok'], schemes['elements'], schemes['finfo']], l)
 					if fname:
 						for d in fname:
-							self.logger.debug(msg['jrn_command_prop'].format(d, fname[d]))
+							self.logger.debug(msg['jrn_command_prop'].format(d, fname[d], li+1))
 							if not getattr(cmd, d): setattr(cmd, d, fname[d])
 
 				if not cmd.size:
-					size = self.getParsedPattern([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['detect']], re.sub(r'\s+', ' ', l + lines[li+1]))
+					size = self.getParsedPattern([schemes['fsizecomp'], schemes['fsizeopen'], schemes['skybase'], schemes['elements']], re.sub(r'\s+', ' ', l + lines[li+1]))
 					for d in size:
-						self.logger.debug(msg['jrn_command_prop'].format(d, size[d]))
+						self.logger.debug(msg['jrn_command_prop'].format(d, size[d], li+1))
 						if not getattr(cmd, d): setattr(cmd, d, size[d])
 
 				if not cmd.status:
-					status = self.getParsedPattern([schemes['finfo'], schemes['saveas'], schemes['modelsave']], l)
+					status = self.getParsedPattern([schemes['finfo'], schemes['saveas'], schemes['operation'], schemes['onsave'], schemes['upload']], l)
+					# test = re.search(r'Operation.*ServerDataFileStream::(.*?):.*Path\s=\s"(.*?)"', l)
+					# if test:
+					# 	print(test.group())
+					# if status:
+					# 	print(status)
 					for d in status:
-						self.logger.debug(msg['jrn_command_prop'].format(d, status[d]))
+						self.logger.debug(msg['jrn_command_prop'].format(d, status[d], li+1))
 						if not getattr(cmd, d): setattr(cmd, d, status[d])	
 
 			li += 1
 
 		# we don't need commands with empty object
-		if commands and commands[-1].type == 'exit':
+		if commands and not commands[-1].file:
 			self.logger.warning(msg['jrn_command_empty'])
 			del commands[-1]
 
