@@ -29,9 +29,6 @@ def runCollector():
 	cde = CDE(arg.user, arg.pwd)
 	rvt = Revit()
 
-	journals = list()
-	commands = list()
-
 	# log started job
 	job = db.cursor.execute("SELECT * FROM jobs WHERE id = (SELECT MAX(id) FROM jobs)").fetchone()
 	jobId = job[0]+1 if job else 0
@@ -43,8 +40,11 @@ def runCollector():
 
 	# for specified cde network
 	cde.logger.debug('Retrieving network nodes...')
-	for host in ['10.8.88.206', '10.8.89.97', '10.8.89.997']:
+	for host in cde.getHosts():
+	# for host in ['10.8.88.206', '10.8.89.97', '10.8.89.997']:
 		hn += 1
+		journals = list()
+		commands = list()
 		# retrieve journals, sync new or modified with database
 		for journal in cde.getJournals(host):
 			jn +=1
@@ -75,10 +75,10 @@ def runCollector():
 
 
 
-	# sync
-	cde.logger.debug('Sync entries with database...')
-	if journals: db.upsJournalItems(journals)
-	if commands: db.addCommandItems(commands)
+		# sync
+		cde.logger.debug('Sync entries with database...')
+		if journals: db.upsJournalItems(journals)
+		if commands: db.addCommandItems(commands)
 
 	cde.logger.info('Processed journals: ' + cde.config['colors']['y'] + str(len(journals)) + cde.config['colors']['x'] + '/' + str(jn) + ', commands: ' + cde.config['colors']['y'] + str(len(commands)) + cde.config['colors']['x'] + '/' + str(cn))
 	cde.logger.debug(cde.config['colors']['y'] + str(round((time.time() - start_time), 3)) + 's')
