@@ -81,3 +81,12 @@ class DB (System):
 		result = query.fetchone()
 
 		return result
+
+
+	def getCommandItemSize(self, file):
+
+		query = self.cursor.execute('SELECT size FROM commands WHERE file = ? ORDER BY dt DESC LIMIT 1', (file,))
+		result = query.fetchone()
+
+		if result:
+			return result[0]

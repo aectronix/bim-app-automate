@@ -19,7 +19,8 @@
             "jrn_command_empty": "The last command is empty, destroying...",
             "jrn_command_break": "The last command was cancelled or failed",
             "jrn_command_exit": "Exit command ends with the $y{}$x type",
-            "jrn_command_prop": "Retrieved \"{}\": $y{}$x at $y{}$x line"
+            "jrn_command_prop": "Retrieved \"{}\": $y{}$x at $y{}$x line",
+            "jrn_command_fsize": "No file size found, value retrieved ($y{}$x) from db"
         }
     },
     "cde": {

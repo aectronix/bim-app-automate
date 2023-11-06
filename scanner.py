@@ -45,6 +45,7 @@ def runCollector():
 		hn += 1
 		journals = list()
 		commands = list()
+
 		# retrieve journals, sync new or modified with database
 		for journal in cde.getJournals(host):
 			jn +=1
@@ -74,6 +75,11 @@ def runCollector():
 									cn += 1
 									# only new
 									if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
+										if not c.size or c.size == -1:
+											size = db.getCommandItemSize(c.file)
+											if size:
+												c.size = size
+												cde.logger.warning(cde.msg['jrn_command_fsize'].format(size))
 										commands.append((str(uuid.uuid4()), j.id, jobId, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status)) # 4 db
 
 
