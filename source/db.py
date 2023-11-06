@@ -49,11 +49,11 @@ class DB (System):
 			)
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS journals \
-				(id text primary key, job integer, name text, mtime integer, build text, user text, path text)'
+				(id text primary key, job integer, name text, mtime integer, size integer, build text, user text, path text)'
 			)
 			self.connection.execute(
 				'CREATE TABLE IF NOT EXISTS commands \
-				(id text primary key, jid text, job integer, idx integer, type text, name text, dt date, file text, size integer, status text)'
+				(id text primary key, jid text, job integer, idx integer, type text, name text, dt text, file text, size integer, status text)'
 			)
 			self.logger.info(self.msg['db_tables_made'].format('jobs, journals, commands'))	
 
@@ -66,7 +66,7 @@ class DB (System):
 
 	def upsJournalItems(self, data):
 
-		self.cursor.executemany("INSERT INTO journals (id, job, name, mtime, build, user, path) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime, job = excluded.job", data)
+		self.cursor.executemany("INSERT INTO journals (id, job, name, mtime, size, build, user, path) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET mtime = excluded.mtime, size = excluded.size, job = excluded.job", data)
 		self.connection.commit()
 
 

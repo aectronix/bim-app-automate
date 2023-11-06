@@ -97,11 +97,6 @@ class Revit (System):
 
 				if not cmd.status:
 					status = self.getParsedPattern([schemes['finfo'], schemes['saveas'], schemes['operation'], schemes['onsave'], schemes['upload']], l)
-					# test = re.search(r'Operation.*ServerDataFileStream::(.*?):.*Path\s=\s"(.*?)"', l)
-					# if test:
-					# 	print(test.group())
-					# if status:
-					# 	print(status)
 					for d in status:
 						self.logger.debug(msg['jrn_command_prop'].format(d, status[d], li+1))
 						if not getattr(cmd, d): setattr(cmd, d, status[d])	
@@ -144,12 +139,13 @@ class Revit (System):
 
 class RevitJournal:
 
-	def __init__(self, id, name, mtime, path, build=None, user=None):
+	def __init__(self, id, name, mtime, path, size=0, build=None, user=None):
 
 		self.id = id
 		self.name = name
 		self.mtime = mtime
 		self.path = path
+		self.size = size
 		self.build = build
 		self.user = user
 

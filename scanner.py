@@ -60,19 +60,21 @@ def runCollector():
 				elif row[3] < math.floor(attr.last_write_time): jid = row[0]
 
 				if jid:
-					text = cde.getFileText(journal)
-					data = rvt.getJournalData(text)
-					if data:
-						j = RevitJournal(jid, attr.filename, math.floor(attr.last_write_time), jpath, data['build'], data['user'])
-						cde.logger.info('Valid content found, parsing started...')
-						journals.append((j.id, jobId, j.name, j.mtime, j.build, j.user, j.path)) # prep for db
-						for c in rvt.getCommandData(j, text):
-							cn += 1
-							# only new
-							if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
-								commands.append((str(uuid.uuid4()), j.id, jobId, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status)) # prep for db
-								# print(json.dumps({'journal': j.name, 'build': j.build, 'user': j.user, 'commands': {'type': c.type,'date': c.dt}}, ensure_ascii=False, indent = 4))
-
+					if attr.file_size > (1073741824 * 5):
+						cde.logger.error(cde.msg['jrn_command_heavy'].format(attr.filename, attr.file_size))
+					else:
+						text = cde.getFileText(journal)
+						if text:
+							data = rvt.getJournalData(text)
+							if data:
+								j = RevitJournal(jid, attr.filename, math.floor(attr.last_write_time), jpath, attr.file_size, data['build'], data['user'])
+								cde.logger.info('Valid content found, parsing started...')
+								journals.append((j.id, jobId, j.name, j.mtime, j.size, j.build, j.user, j.path)) # prep for db
+								for c in rvt.getCommandData(j, text):
+									cn += 1
+									# only new
+									if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
+										commands.append((str(uuid.uuid4()), j.id, jobId, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status)) # prep for db
 
 
 		# sync

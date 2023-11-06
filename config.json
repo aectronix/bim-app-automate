@@ -14,6 +14,7 @@
             "cde_net_host_ok": "Connection succeful, trying to retrieve the files...",
             "cde_net_host_fail": "$y{}$x has no response",
             "cde_no_seek": "No {} has been found",
+            "jrn_command_heavy": "Journal $y{}$x size is $r{}$x bytes, to heavy for processing",
             "jrn_command_found": "Command $y{}$x found at $y{}$x line",
             "jrn_command_empty": "The last command is empty, destroying...",
             "jrn_command_break": "The last command was cancelled or failed",
@@ -42,12 +43,11 @@
         "network": {
             "pysmb": {
                 "port": 445,
-                "timeout": 15,
+                "timeout": 30,
                 "test": "10.8.88.2"
             },
             "nodes": {
-                "n1": ["10.8.88.90", "10.8.88.255"],
-                "n2": ["10.8.89.1", "10.8.88.255"]
+                "n1": ["10.8.88.206", "10.8.88.207"]
             }
         }
     },
@@ -103,6 +103,7 @@
             "20221114_1515": "23.1.1.24",
             "20221122_1550": "23.1.10.4",
             "20230510_1100": "23.1.20.70",
+            "20230828_1515": "23.1.30.97",
             "20210224_1515": "22.0.2.392",
             "20210616_0115": "22.0.10.28",
             "20210921_1515": "22.1.1.516",

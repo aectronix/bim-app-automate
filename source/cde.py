@@ -103,12 +103,18 @@ class CDE (System):
 
 	def getFileText(self, path):
 
-		with tempfile.NamedTemporaryFile() as file:
-			self.connection.retrieveFile('C$', path, file)
-			file.seek(0)
-			data = file.read().decode('latin-1')
+		data = None
 
-		file.close()
+		try:
+			with tempfile.NamedTemporaryFile() as file:
+				self.connection.retrieveFile('C$', path, file)
+				file.seek(0)
+				data = file.read().decode('latin-1')
+
+			file.close()
+
+		except Exception as e:
+			self.logger.error(f'{e}')
 
 		return data
 
