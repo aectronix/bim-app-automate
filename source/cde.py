@@ -16,8 +16,7 @@ class CDE (System):
 		self.auth = False
 		self.connection = None
 
-		config = System().get_config()
-		self.config = config
+		self.config = System().get_config()
 		self.logger = System().get_logger()
 		self.msg = self.config['logger']['messages']
 
@@ -101,7 +100,7 @@ class CDE (System):
 		return journals
 
 
-	def getFileText(self, path):
+	def getFileData(self, path):
 
 		data = None
 

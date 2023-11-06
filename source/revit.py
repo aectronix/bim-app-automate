@@ -9,8 +9,7 @@ class Revit (System):
 
 	def __init__(self):
 
-		config = System().get_config()
-		self.config = config
+		self.config = System().get_config()
 		self.logger = System().get_logger()
 
 	def getJournalData(self, data):

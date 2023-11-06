@@ -12,8 +12,7 @@ class DB (System):
 		self.connection = None
 		self.cursor = None
 
-		config = System().get_config()
-		self.config = config
+		self.config = System().get_config()
 		self.logger = System().get_logger()
 		self.msg = self.config['logger']['messages']
 

@@ -63,7 +63,7 @@ def runCollector():
 					if attr.file_size > (1073741824 * 5):
 						cde.logger.error(cde.msg['jrn_command_heavy'].format(attr.filename, attr.file_size))
 					else:
-						text = cde.getFileText(journal)
+						text = cde.getFileData(journal)
 						if text:
 							data = rvt.getJournalData(text)
 							if data:
