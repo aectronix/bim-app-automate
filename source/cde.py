@@ -40,21 +40,25 @@ class CDE (System):
 		connection.close()
 
 
-	def getHosts(self):
+	def getHosts(self, host=None):
 
-		hosts = list()
-		net = self.config['cde']['network']['nodes']
+		if host:
+			hosts = [host,]
 
-		if not self.host:
-			hosts = [self.host,]
 		else:
-			for n in net:
-				# get ranges and mask
-				ip = net[n][0].split('.')
-				start = net[n][0].split('.')[3]
-				end = net[n][1].split('.')[3]
-				for i in range(int(start), int(end)+1):
-					hosts.append('.'.join(ip[:3]) + '.' + str(i))
+			hosts = list()
+			net = self.config['cde']['network']['nodes']
+
+			if not self.host:
+				hosts = [self.host,]
+			else:
+				for n in net:
+					# get ranges and mask
+					ip = net[n][0].split('.')
+					start = net[n][0].split('.')[3]
+					end = net[n][1].split('.')[3]
+					for i in range(int(start), int(end)+1):
+						hosts.append('.'.join(ip[:3]) + '.' + str(i))
 		
 		return hosts
 

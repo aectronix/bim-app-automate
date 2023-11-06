@@ -16,6 +16,7 @@ start_time = time.time()
 cmd = argparse.ArgumentParser()
 cmd.add_argument('-u', '--user', required=True, help='user login')
 cmd.add_argument('-p', '--pwd', required=True, help='user password')
+cmd.add_argument('-a', '--addres', required=False, help='single host')
 arg = cmd.parse_args()
 
 
@@ -40,8 +41,7 @@ def runCollector():
 
 	# for specified cde network
 	cde.logger.debug('Retrieving network nodes...')
-	for host in cde.getHosts():
-	# for host in ['10.8.88.206', '10.8.89.97', '10.8.89.997']:
+	for host in cde.getHosts(arg.addres):
 		hn += 1
 		journals = list()
 		commands = list()
@@ -69,12 +69,12 @@ def runCollector():
 							if data:
 								j = RevitJournal(jid, attr.filename, math.floor(attr.last_write_time), jpath, attr.file_size, data['build'], data['user'])
 								cde.logger.info('Valid content found, parsing started...')
-								journals.append((j.id, jobId, j.name, j.mtime, j.size, j.build, j.user, j.path)) # prep for db
+								journals.append((j.id, jobId, j.name, j.mtime, j.size, j.build, j.user, j.path)) # 4 db
 								for c in rvt.getCommandData(j, text):
 									cn += 1
 									# only new
 									if c and not db.getCommandItem(j.id, c.idx, c.type, c.name, c.dt):
-										commands.append((str(uuid.uuid4()), j.id, jobId, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status)) # prep for db
+										commands.append((str(uuid.uuid4()), j.id, jobId, c.idx, c.type, c.name, c.dt, c.file, c.size, c.status)) # 4 db
 
 
 		# sync
